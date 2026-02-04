@@ -1,0 +1,182 @@
+{
+  "info": {
+    "name": "World Education - Login Module",
+    "description": "API collection for testing the Login Module",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login - STUDENT (Success)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"student001\",\n  \"password\": \"student123\",\n  \"deviceId\": \"web-device-001\",\n  \"deviceType\": \"WEB\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login with valid STUDENT credentials"
+          }
+        },
+        {
+          "name": "Login - ADMIN (Success)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"admin001\",\n  \"password\": \"admin123\",\n  \"deviceId\": \"web-device-002\",\n  \"deviceType\": \"WEB\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login with valid ADMIN credentials"
+          }
+        },
+        {
+          "name": "Login - STUDENT from Android",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"student001\",\n  \"password\": \"student123\",\n  \"deviceId\": \"android-device-123\",\n  \"deviceType\": \"ANDROID\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login from Android device (should logout from web)"
+          }
+        },
+        {
+          "name": "Login - STUDENT from iOS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"student001\",\n  \"password\": \"student123\",\n  \"deviceId\": \"ios-device-456\",\n  \"deviceType\": \"IOS\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login from iOS device"
+          }
+        },
+        {
+          "name": "Login - Invalid Credentials",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"student001\",\n  \"password\": \"wrongpassword\",\n  \"deviceId\": \"web-device-001\",\n  \"deviceType\": \"WEB\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login with invalid password (should increment failed attempts)"
+          }
+        },
+        {
+          "name": "Login - Non-existent User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"nonexistent\",\n  \"password\": \"password123\",\n  \"deviceId\": \"web-device-001\",\n  \"deviceType\": \"WEB\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login with non-existent user"
+          }
+        },
+        {
+          "name": "Login - Missing Fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"student001\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login with missing required fields (validation test)"
+          }
+        }
+      ]
+    }
+  ]
+}

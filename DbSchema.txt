@@ -1,0 +1,31 @@
+1. Identity & Access Management
+
+Table: users customer_id (PK) user_id (UNIQUE) password_hash failed_login_attempts account_locked (BOOLEAN) last_login_attempt_at (DATETIME) last_login_at (DATETIME) user_category (ENUM: ADMIN, STUDENT) created_at (DATETIME) updated_at (DATETIME) password_expiry (DATETIME)
+
+Table: users_profile customer_id (PK, FK references users.customer_id) first_name middle_name last_name country state city address email (UNIQUE) mobile_no created_at (DATETIME) updated_at (DATETIME)
+
+Table: user_sessions session_id (PK) customer_id (FK references users.customer_id) device_id device_type (ENUM: WEB, ANDROID, IOS) login_time (DATETIME) last_activity_at (DATETIME) is_active (BOOLEAN)
+
+2. Educational Content Hierarchy
+
+Table: ed_classes class_id (PK) class_name class_number is_active (BOOLEAN) created_at (DATETIME)
+
+Table: ed_subjects subject_id (PK) class_id (FK references ed_classes.class_id) subject_name is_active (BOOLEAN) created_at (DATETIME)
+
+Table: ed_topics topic_id (PK) subject_id (FK references ed_subjects.subject_id) topic_name publish_date (DATETIME) is_active (BOOLEAN) created_at (DATETIME)
+
+Table: topic_contents content_id (PK) topic_id (FK references ed_topics.topic_id) file_name file_path_url file_type uploaded_by (FK references users.customer_id) uploaded_at (DATETIME) is_active (BOOLEAN)
+
+3. Subscriptions & Billing
+
+Table: subscription_plans subscription_id (PK) plan_name target_type (ENUM: CLASS, SUBJECT, TOPIC) target_id (Polymorphic FK: references class_id, subject_id, or topic_id) duration_days (INT) price (DECIMAL) currency grace_period_days (INT) free_days (INT) is_active (BOOLEAN) created_at (DATETIME) updated_at (DATETIME)
+
+Table: user_subscriptions user_subscription_id (PK) customer_id (FK references users.customer_id) subscription_id (FK references subscription_plans.subscription_id) start_date (DATETIME) end_date (DATETIME) subscription_state (ENUM: ACTIVE, EXPIRED, CANCELLED, SUSPENDED) auto_renew (BOOLEAN) cancelled_at (DATETIME) payment_id (FK references payments.payment_id) created_at (DATETIME)
+
+Table: payments payment_id (PK) customer_id (FK references users.customer_id) subscription_id (FK references subscription_plans.subscription_id) amount_paid (DECIMAL) currency payment_source (ENUM: CARD, APPLEPAY, GOOGLEPAY, STRIPE, JAZZCASH) gateway_transaction_ref card_last4 payment_status (ENUM: SUCCESS, FAILED, REFUNDED) paid_at (DATETIME)
+
+4. Logs & Audit Trails
+
+Table: subscription_plan_history history_id (PK) subscription_id (FK references subscription_plans.subscription_id) old_price (DECIMAL) new_price (DECIMAL) old_duration_days (INT) new_duration_days (INT) change_type (ENUM: PRICE_UPDATE, DURATION_CHANGE, DEACTIVATED) changed_by (FK references users.customer_id) changed_at (DATETIME)
+
+Table: user_subscription_history history_id (PK) user_subscription_id (FK references user_subscriptions.user_subscription_id) old_state (STRING) new_state (STRING) change_reason (TEXT) changed_by (FK references users.customer_id) changed_at (DATETIME)
