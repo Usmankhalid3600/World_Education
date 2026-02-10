@@ -1,17 +1,18 @@
-package com.worldedu.worldeducation.service;
+package com.worldedu.worldeducation.auth.service;
 
-import com.worldedu.worldeducation.dto.LoginRequest;
-import com.worldedu.worldeducation.dto.LoginResponse;
-import com.worldedu.worldeducation.entity.User;
-import com.worldedu.worldeducation.entity.UserProfile;
-import com.worldedu.worldeducation.entity.UserSession;
+import com.worldedu.worldeducation.auth.dto.LoginRequest;
+import com.worldedu.worldeducation.auth.dto.LoginResponse;
+import com.worldedu.worldeducation.auth.entity.User;
+import com.worldedu.worldeducation.auth.entity.UserProfile;
+import com.worldedu.worldeducation.auth.entity.UserSession;
 import com.worldedu.worldeducation.enums.UserCategory;
 import com.worldedu.worldeducation.exception.AccountLockedException;
 import com.worldedu.worldeducation.exception.InvalidCredentialsException;
-import com.worldedu.worldeducation.repository.UserProfileRepository;
-import com.worldedu.worldeducation.repository.UserRepository;
-import com.worldedu.worldeducation.repository.UserSessionRepository;
+import com.worldedu.worldeducation.auth.repository.UserProfileRepository;
+import com.worldedu.worldeducation.auth.repository.UserRepository;
+import com.worldedu.worldeducation.auth.repository.UserSessionRepository;
 import com.worldedu.worldeducation.util.PasswordUtil;
+import com.worldedu.worldeducation.security.jwt.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class AuthService {
     private final UserProfileRepository userProfileRepository;
     private final UserSessionRepository userSessionRepository;
     private final PasswordUtil passwordUtil;
+    private final JwtUtil jwtUtil;
 
     /**
      * Authenticate user and create session
@@ -135,12 +137,20 @@ public class AuthService {
         UserProfile userProfile = userProfileRepository.findById(user.getCustomerId())
                 .orElse(null);
 
+        // Generate JWT token
+        String token = jwtUtil.generateToken(
+                user.getUserId(),
+                user.getCustomerId(),
+                user.getUserCategory().name()
+        );
+
         LoginResponse.LoginResponseBuilder responseBuilder = LoginResponse.builder()
                 .customerId(user.getCustomerId())
                 .userId(user.getUserId())
                 .userCategory(user.getUserCategory())
                 .sessionId(session.getSessionId())
                 .loginTime(session.getLoginTime())
+                .token(token)
                 .message("Login successful");
 
         if (userProfile != null) {

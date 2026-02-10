@@ -1,7 +1,7 @@
-package com.worldedu.worldeducation.repository;
+package com.worldedu.worldeducation.auth.repository;
 
-import com.worldedu.worldeducation.entity.User;
-import com.worldedu.worldeducation.entity.UserSession;
+import com.worldedu.worldeducation.auth.entity.User;
+import com.worldedu.worldeducation.auth.entity.UserSession;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

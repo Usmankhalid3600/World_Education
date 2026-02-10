@@ -1,9 +1,9 @@
-package com.worldedu.worldeducation.controller;
+package com.worldedu.worldeducation.auth.controller;
 
 import com.worldedu.worldeducation.common.ApiResponse;
-import com.worldedu.worldeducation.dto.LoginRequest;
-import com.worldedu.worldeducation.dto.LoginResponse;
-import com.worldedu.worldeducation.service.AuthService;
+import com.worldedu.worldeducation.auth.dto.LoginRequest;
+import com.worldedu.worldeducation.auth.dto.LoginResponse;
+import com.worldedu.worldeducation.auth.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

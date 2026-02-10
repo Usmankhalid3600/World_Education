@@ -1,4 +1,4 @@
-package com.worldedu.worldeducation.dto;
+package com.worldedu.worldeducation.auth.dto;
 
 import com.worldedu.worldeducation.enums.UserCategory;
 import lombok.AllArgsConstructor;
@@ -22,5 +22,6 @@ public class LoginResponse {
     private String email;
     private Long sessionId;
     private LocalDateTime loginTime;
+    private String token;
     private String message;
 }

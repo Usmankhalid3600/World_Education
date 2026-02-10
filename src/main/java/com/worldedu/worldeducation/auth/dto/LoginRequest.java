@@ -1,4 +1,4 @@
-package com.worldedu.worldeducation.dto;
+package com.worldedu.worldeducation.auth.dto;
 
 import com.worldedu.worldeducation.enums.DeviceType;
 import jakarta.validation.constraints.NotBlank;

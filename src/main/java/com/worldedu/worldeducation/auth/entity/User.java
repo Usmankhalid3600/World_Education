@@ -1,4 +1,4 @@
-package com.worldedu.worldeducation.entity;
+package com.worldedu.worldeducation.auth.entity;
 
 import com.worldedu.worldeducation.enums.UserCategory;
 import jakarta.persistence.*;

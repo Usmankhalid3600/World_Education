@@ -1,6 +1,6 @@
-package com.worldedu.worldeducation.repository;
+package com.worldedu.worldeducation.auth.repository;
 
-import com.worldedu.worldeducation.entity.UserProfile;
+import com.worldedu.worldeducation.auth.entity.UserProfile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

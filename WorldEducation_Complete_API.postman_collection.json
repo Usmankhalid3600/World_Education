@@ -1,0 +1,194 @@
+{
+  "info": {
+    "name": "World Education - Complete API Collection",
+    "description": "Complete API collection including Authentication, Subjects, and Topics with JWT security",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login - Get JWT Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                  "    console.log(\"Token saved: \" + jsonData.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"student001\",\n  \"password\": \"student123\",\n  \"deviceId\": \"web-device-001\",\n  \"deviceType\": \"WEB\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login and automatically save JWT token to collection variable"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subjects",
+      "item": [
+        {
+          "name": "Get Subjects for Grade 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/subjects/class/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subjects", "class", "1"]
+            },
+            "description": "Get opted and unopted subjects for Grade 1 (requires JWT token)"
+          }
+        },
+        {
+          "name": "Get Subjects for Grade 2",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/subjects/class/2",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subjects", "class", "2"]
+            },
+            "description": "Get opted and unopted subjects for Grade 2 (requires JWT token)"
+          }
+        },
+        {
+          "name": "Get Subjects - Without Token (Should Fail)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/subjects/class/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subjects", "class", "1"]
+            },
+            "description": "Test unauthorized access - should return 401/403"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Topics",
+      "item": [
+        {
+          "name": "Get Topics for Mathematics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/subject/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "subject", "1"]
+            },
+            "description": "Get opted and unopted topics for Mathematics (subject_id=1)"
+          }
+        },
+        {
+          "name": "Get Topics for English",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/subject/2",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "subject", "2"]
+            },
+            "description": "Get opted and unopted topics for English (subject_id=2)"
+          }
+        },
+        {
+          "name": "Get Topics for Science",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/subject/3",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "subject", "3"]
+            },
+            "description": "Get opted and unopted topics for Science (subject_id=3)"
+          }
+        },
+        {
+          "name": "Get Topics - Without Token (Should Fail)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/subject/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "subject", "1"]
+            },
+            "description": "Test unauthorized access - should return 401/403"
+          }
+        }
+      ]
+    }
+  ]
+}
