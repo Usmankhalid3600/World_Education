@@ -1,0 +1,272 @@
+{
+  "info": {
+    "name": "World Education - SignUp & Google OAuth",
+    "description": "API collection for SignUp with email verification and Google OAuth integration",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testEmail",
+      "value": "test@example.com",
+      "type": "string"
+    },
+    {
+      "key": "verificationCode",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "SignUp Flow",
+      "item": [
+        {
+          "name": "Step 1: SignUp - Send Verification Code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('Verification code sent to email');",
+                  "    console.log('Check your email for the 6-digit code');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"testuser001\",\n  \"password\": \"Test@1234\",\n  \"userCategory\": \"STUDENT\",\n  \"firstName\": \"Test\",\n  \"middleName\": \"Middle\",\n  \"lastName\": \"User\",\n  \"email\": \"{{testEmail}}\",\n  \"mobileNo\": \"+1234567890\",\n  \"country\": \"USA\",\n  \"state\": \"California\",\n  \"city\": \"Los Angeles\",\n  \"address\": \"123 Test Street\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "signup"]
+            },
+            "description": "Step 1: Submit signup form and receive verification code via email"
+          }
+        },
+        {
+          "name": "Step 2: Verify Code - Complete SignUp",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                  "    console.log(\"SignUp successful! Token saved: \" + jsonData.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"code\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "verify"]
+            },
+            "description": "Step 2: Enter the 6-digit code received via email to complete signup. Replace '123456' with actual code from email."
+          }
+        }
+      ],
+      "description": "Two-step signup process with email verification"
+    },
+    {
+      "name": "Google OAuth",
+      "item": [
+        {
+          "name": "Google SignUp/SignIn",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                  "    console.log(\"Google auth successful! Token saved: \" + jsonData.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"googleToken\": \"dummy_google_token_from_frontend\",\n  \"email\": \"googleuser@gmail.com\",\n  \"firstName\": \"Google\",\n  \"lastName\": \"User\",\n  \"googleId\": \"1234567890\",\n  \"mobileNo\": \"+1234567890\",\n  \"country\": \"USA\",\n  \"state\": \"California\",\n  \"city\": \"Mountain View\",\n  \"address\": \"1600 Amphitheatre Parkway\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/google",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "google"]
+            },
+            "description": "Google OAuth authentication - handles both signup and signin automatically"
+          }
+        }
+      ],
+      "description": "Google OAuth integration for signup and signin"
+    },
+    {
+      "name": "Error Cases",
+      "item": [
+        {
+          "name": "SignUp - Duplicate User ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"student001\",\n  \"password\": \"Test@1234\",\n  \"userCategory\": \"STUDENT\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"email\": \"newemail@example.com\",\n  \"mobileNo\": \"+1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "signup"]
+            },
+            "description": "Test error: User ID already exists - Expected 400"
+          }
+        },
+        {
+          "name": "SignUp - Duplicate Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"newuser123\",\n  \"password\": \"Test@1234\",\n  \"userCategory\": \"STUDENT\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"email\": \"student001@example.com\",\n  \"mobileNo\": \"+1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "signup"]
+            },
+            "description": "Test error: Email already registered - Expected 400"
+          }
+        },
+        {
+          "name": "Verify - Invalid Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"code\": \"999999\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "verify"]
+            },
+            "description": "Test error: Invalid verification code - Expected 400"
+          }
+        },
+        {
+          "name": "Google SignIn - Password User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"googleToken\": \"dummy_token\",\n  \"email\": \"student001@example.com\",\n  \"firstName\": \"Student\",\n  \"lastName\": \"One\",\n  \"googleId\": \"9999999999\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/google",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "google"]
+            },
+            "description": "Test error: Email registered with password - Expected 400"
+          }
+        }
+      ],
+      "description": "Test error handling scenarios"
+    },
+    {
+      "name": "Test Authenticated Access",
+      "item": [
+        {
+          "name": "Get Subjects (After SignUp)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/subjects/class/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subjects", "class", "1"]
+            },
+            "description": "Test JWT token works after signup - should return 200 OK"
+          }
+        }
+      ],
+      "description": "Test that JWT token from signup/signin works for authenticated requests"
+    }
+  ]
+}

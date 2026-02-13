@@ -1,5 +1,6 @@
 package com.worldedu.worldeducation.auth.entity;
 
+import com.worldedu.worldeducation.enums.SignUpMethod;
 import com.worldedu.worldeducation.enums.UserCategory;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -50,6 +51,10 @@ public class User {
 
     @Column(name = "password_expiry")
     private LocalDateTime passwordExpiry;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "signUp_method", nullable = false)
+    private SignUpMethod signUpMethod = SignUpMethod.DATA;
 
     @PrePersist
     protected void onCreate() {

@@ -189,6 +189,182 @@
           }
         }
       ]
+    },
+    {
+      "name": "Topic Contents",
+      "item": [
+        {
+          "name": "Get Contents - Addition (Topic Subscription)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/1/contents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "1", "contents"]
+            },
+            "description": "Get contents for Addition topic (student001 has topic subscription)"
+          }
+        },
+        {
+          "name": "Get Contents - Division (Subject Subscription)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/3/contents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "3", "contents"]
+            },
+            "description": "Get contents for Division topic (student001 has Math subject subscription)"
+          }
+        },
+        {
+          "name": "Get Contents - Reading (Subject Subscription)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/6/contents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "6", "contents"]
+            },
+            "description": "Get contents for Reading topic (student001 has English subject subscription)"
+          }
+        },
+        {
+          "name": "Get Contents - Plants (No Access - Should Fail)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/9/contents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "9", "contents"]
+            },
+            "description": "Get contents for Plants topic (student001 has NO subscription - should return 403)"
+          }
+        },
+        {
+          "name": "Get Contents - Without Token (Should Fail)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/1/contents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "1", "contents"]
+            },
+            "description": "Test unauthorized access - should return 401"
+          }
+        },
+        {
+          "name": "Upload Content - Multipart File",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Select a file to upload (PDF, JPG, PNG, etc.)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/1/contents/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "1", "contents", "upload"]
+            },
+            "description": "Upload a file to Addition topic using multipart/form-data. Select a file in the Body > form-data section."
+          }
+        },
+        {
+          "name": "Upload Content - Base64 JSON",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileName\": \"sample_document.txt\",\n  \"fileType\": \"TXT\",\n  \"fileDataBase64\": \"VGhpcyBpcyBhIHNhbXBsZSB0ZXh0IGZpbGUgZm9yIGRlbW9uc3RyYXRpb24uCkl0IGNvbnRhaW5zIG11bHRpcGxlIGxpbmVzLgpUaGlzIGlzIHRoZSB0aGlyZCBsaW5lLg==\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/1/contents/upload-base64",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "1", "contents", "upload-base64"]
+            },
+            "description": "Upload content using Base64 encoded data. The sample Base64 string decodes to: 'This is a sample text file for demonstration.\\nIt contains multiple lines.\\nThis is the third line.'"
+          }
+        },
+        {
+          "name": "Delete Content",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/contents/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "contents", "1"]
+            },
+            "description": "Soft delete a topic content by ID. Set is_active to false."
+          }
+        }
+      ]
     }
   ]
 }
