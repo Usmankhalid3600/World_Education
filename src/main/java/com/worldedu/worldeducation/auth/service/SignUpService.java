@@ -269,7 +269,8 @@ public class SignUpService {
             
             // Create User Profile
             UserProfile profile = new UserProfile();
-            profile.setCustomerId(savedUser.getCustomerId());
+//            profile.setCustomerId(savedUser.getCustomerId());
+            profile.setUser(user);
             profile.setFirstName(request.getFirstName());
             profile.setLastName(request.getLastName());
             profile.setEmail(request.getEmail());
