@@ -11,7 +11,7 @@ import com.worldedu.worldeducation.exception.InvalidCredentialsException;
 import com.worldedu.worldeducation.auth.repository.UserProfileRepository;
 import com.worldedu.worldeducation.auth.repository.UserRepository;
 import com.worldedu.worldeducation.auth.repository.UserSessionRepository;
-import com.worldedu.worldeducation.util.PasswordUtil;
+import com.worldedu.worldeducation.auth.util.PasswordUtil;
 import com.worldedu.worldeducation.security.jwt.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,8 +28,9 @@ public class AuthService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final UserSessionRepository userSessionRepository;
-    private final PasswordUtil passwordUtil;
     private final JwtUtil jwtUtil;
+    
+    private static final int MAX_FAILED_ATTEMPTS = 5;
 
     /**
      * Authenticate user and create session
@@ -54,8 +55,8 @@ public class AuthService {
         // Update last login attempt
         user.setLastLoginAttemptAt(LocalDateTime.now());
 
-        // Verify password
-        if (!passwordUtil.verifyPassword(loginRequest.getPassword(), user.getPasswordHash())) {
+        // Verify password using BCrypt
+        if (!PasswordUtil.verifyPassword(loginRequest.getPassword(), user.getPasswordHash())) {
             handleFailedLogin(user);
             throw new InvalidCredentialsException("Invalid user ID or password");
         }
@@ -87,7 +88,7 @@ public class AuthService {
         int failedAttempts = user.getFailedLoginAttempts() + 1;
         user.setFailedLoginAttempts(failedAttempts);
 
-        if (passwordUtil.shouldLockAccount(failedAttempts)) {
+        if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
             user.setAccountLocked(true);
             userRepository.save(user);
             log.warn("Account locked for user: {} after {} failed attempts", 
@@ -98,7 +99,7 @@ public class AuthService {
 
         userRepository.save(user);
         log.warn("Failed login attempt {} of {} for user: {}", 
-                failedAttempts, passwordUtil.getMaxFailedAttempts(), user.getUserId());
+                failedAttempts, MAX_FAILED_ATTEMPTS, user.getUserId());
     }
 
     /**
