@@ -13,6 +13,8 @@ import com.worldedu.worldeducation.topic.repository.UserTopicSubscriptionReposit
 import com.worldedu.worldeducation.subject.entity.EdSubject;
 import com.worldedu.worldeducation.subject.repository.EdSubjectRepository;
 import com.worldedu.worldeducation.subject.repository.UserSubjectSubscriptionRepository;
+import com.worldedu.worldeducation.subscription.entity.SubscriptionPlan;
+import com.worldedu.worldeducation.subscription.repository.SubscriptionPlanRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,7 @@ public class TopicService {
     private final EdSubjectRepository edSubjectRepository;
     private final TopicContentRepository topicContentRepository;
     private final UserSubjectSubscriptionRepository userSubjectSubscriptionRepository;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
 
     /**
      * Get opted and unopted topics for a subject
@@ -69,14 +72,31 @@ public class TopicService {
         for (EdTopic topic : allTopics) {
             boolean isOpted = subscribedTopicIds.contains(topic.getTopicId());
             
-            TopicDTO topicDTO = TopicDTO.builder()
+            TopicDTO.TopicDTOBuilder topicBuilder = TopicDTO.builder()
                     .topicId(topic.getTopicId())
                     .subjectId(topic.getSubjectId())
                     .topicName(topic.getTopicName())
                     .publishDate(topic.getPublishDate())
                     .isActive(topic.getIsActive())
-                    .isOpted(isOpted)
-                    .build();
+                    .isOpted(isOpted);
+            
+            // If topic is not opted, include subscription plan information
+            if (!isOpted) {
+                List<SubscriptionPlan> plans = subscriptionPlanRepository
+                        .findByTargetTypeAndTargetId(SubscriptionPlan.TargetType.TOPIC, topic.getTopicId());
+                
+                if (!plans.isEmpty()) {
+                    SubscriptionPlan plan = plans.get(0);
+                    topicBuilder
+                            .subscriptionPrice(plan.getPrice())
+                            .currency(plan.getCurrency())
+                            .durationDays(plan.getDurationDays())
+                            .freeDays(plan.getFreeDays())
+                            .gracePeriodDays(plan.getGracePeriodDays());
+                }
+            }
+            
+            TopicDTO topicDTO = topicBuilder.build();
 
             if (isOpted) {
                 optedTopics.add(topicDTO);

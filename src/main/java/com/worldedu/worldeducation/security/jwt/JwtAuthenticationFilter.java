@@ -53,8 +53,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 User user = userRepository.findByUserId(userId).orElse(null);
                 
                 if (user != null && !user.getAccountLocked()) {
-                    // Create authentication token
-                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + user.getUserCategory().name());
+                    // Create authentication token with authority matching SecurityConfig
+                    // Using user category directly (ADMIN, STUDENT) without "ROLE_" prefix
+                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority(user.getUserCategory().name());
                     UsernamePasswordAuthenticationToken authenticationToken = 
                         new UsernamePasswordAuthenticationToken(
                             user, 
@@ -67,7 +68,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // Set authentication in security context
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                     
-                    log.debug("Authenticated user: {} with role: {}", userId, user.getUserCategory());
+                    log.debug("Authenticated user: {} with authority: {}", userId, user.getUserCategory());
                 }
             }
         }
