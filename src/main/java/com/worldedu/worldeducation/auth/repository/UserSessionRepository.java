@@ -14,7 +14,9 @@ import java.util.List;
 public interface UserSessionRepository extends JpaRepository<UserSession, Long> {
     
     List<UserSession> findByUserAndIsActive(User user, Boolean isActive);
-    
+
+    boolean existsBySessionIdAndIsActive(Long sessionId, Boolean isActive);
+
     @Modifying
     @Query("UPDATE UserSession us SET us.isActive = false WHERE us.user = :user AND us.isActive = true")
     void deactivateAllSessionsForUser(@Param("user") User user);

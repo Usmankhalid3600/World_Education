@@ -59,6 +59,41 @@ public class EmailService {
     }
 
     /**
+     * Send password reset code email
+     * @param toEmail Recipient email address
+     * @param resetCode The 6-digit reset code
+     * @param validityMinutes How long the code is valid
+     */
+    public void sendPasswordResetCode(String toEmail, String resetCode, int validityMinutes) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(toEmail);
+            message.setSubject(appName + " - Password Reset Code");
+
+            String emailBody = String.format(
+                "Hello,\n\n" +
+                "We received a request to reset your %s account password.\n\n" +
+                "Your password reset code is: %s\n\n" +
+                "This code will expire in %d minutes.\n\n" +
+                "If you did not request a password reset, please ignore this email. " +
+                "Your password will remain unchanged.\n\n" +
+                "Best regards,\n" +
+                "%s Team",
+                appName, resetCode, validityMinutes, appName
+            );
+
+            message.setText(emailBody);
+            mailSender.send(message);
+            log.info("Password reset code sent successfully to: {}", toEmail);
+
+        } catch (Exception e) {
+            log.error("Failed to send password reset code to: {}", toEmail, e);
+            throw new RuntimeException("Failed to send password reset email. Please try again later.");
+        }
+    }
+
+    /**
      * Send welcome email after successful signup
      * @param toEmail Recipient email address
      * @param firstName User's first name

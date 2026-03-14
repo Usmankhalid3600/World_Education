@@ -61,7 +61,8 @@ public class AdminService {
         edClass.setClassName(request.getClassName());
         edClass.setClassNumber(request.getClassNumber());
         edClass.setIsActive(request.getIsActive());
-        
+        edClass.setDescription(request.getDescription());
+
         EdClass saved = classRepository.save(edClass);
         log.info("Created class: {}", saved.getClassName());
         
@@ -76,7 +77,8 @@ public class AdminService {
         edClass.setClassName(request.getClassName());
         edClass.setClassNumber(request.getClassNumber());
         edClass.setIsActive(request.getIsActive());
-        
+        edClass.setDescription(request.getDescription());
+
         EdClass updated = classRepository.save(edClass);
         log.info("Updated class: {}", updated.getClassName());
         
@@ -120,7 +122,8 @@ public class AdminService {
         subject.setClassId(request.getClassId());
         subject.setSubjectName(request.getSubjectName());
         subject.setIsActive(request.getIsActive());
-        
+        subject.setDescription(request.getDescription());
+
         EdSubject saved = subjectRepository.save(subject);
         log.info("Created subject: {}", saved.getSubjectName());
         
@@ -135,7 +138,8 @@ public class AdminService {
         subject.setClassId(request.getClassId());
         subject.setSubjectName(request.getSubjectName());
         subject.setIsActive(request.getIsActive());
-        
+        subject.setDescription(request.getDescription());
+
         EdSubject updated = subjectRepository.save(subject);
         log.info("Updated subject: {}", updated.getSubjectName());
         
@@ -180,7 +184,8 @@ public class AdminService {
         topic.setTopicName(request.getTopicName());
         topic.setPublishDate(request.getPublishDate() != null ? request.getPublishDate() : LocalDateTime.now());
         topic.setIsActive(request.getIsActive());
-        
+        topic.setDescription(request.getDescription());
+
         EdTopic saved = topicRepository.save(topic);
         log.info("Created topic: {}", saved.getTopicName());
         
@@ -198,7 +203,8 @@ public class AdminService {
             topic.setPublishDate(request.getPublishDate());
         }
         topic.setIsActive(request.getIsActive());
-        
+        topic.setDescription(request.getDescription());
+
         EdTopic updated = topicRepository.save(topic);
         log.info("Updated topic: {}", updated.getTopicName());
         
@@ -265,6 +271,7 @@ public class AdminService {
                 .className(edClass.getClassName())
                 .classNumber(edClass.getClassNumber())
                 .isActive(edClass.getIsActive())
+                .description(edClass.getDescription())
                 .build();
     }
 
@@ -275,6 +282,7 @@ public class AdminService {
                 .subjectName(subject.getSubjectName())
                 .isActive(subject.getIsActive())
                 .isOpted(false)
+                .description(subject.getDescription())
                 .build();
     }
 
@@ -286,6 +294,7 @@ public class AdminService {
                 .publishDate(topic.getPublishDate())
                 .isActive(topic.getIsActive())
                 .isOpted(false)
+                .description(topic.getDescription())
                 .build();
     }
 
@@ -352,20 +361,33 @@ public class AdminService {
 
     @Transactional
     public SubscriptionPlanDTO createSubscriptionPlan(CreateSubscriptionPlanRequest request) {
+        validateTargetExists(request.getTargetType(), request.getTargetId());
+
+        // Guard: prevent duplicate active plans for the same target
+        boolean duplicatePlanExists = switch (request.getTargetType()) {
+            case CLASS -> subscriptionPlanRepository.findByClassIdAndIsActiveTrue(request.getTargetId()).isPresent();
+            case SUBJECT -> subscriptionPlanRepository.findBySubjectIdAndIsActiveTrue(request.getTargetId()).isPresent();
+            case TOPIC -> subscriptionPlanRepository.findByTopicIdAndIsActiveTrue(request.getTargetId()).isPresent();
+        };
+        if (duplicatePlanExists) {
+            throw new RuntimeException("An active subscription plan already exists for this "
+                    + request.getTargetType().name().toLowerCase() + ". Edit the existing plan instead.");
+        }
+
         SubscriptionPlan plan = new SubscriptionPlan();
         plan.setPlanName(request.getPlanName());
         plan.setTargetType(request.getTargetType());
-        plan.setTargetId(request.getTargetId());
+        setTypedTargetId(plan, request.getTargetType(), request.getTargetId());
         plan.setDurationDays(request.getDurationDays());
         plan.setPrice(request.getPrice());
         plan.setCurrency(request.getCurrency() != null ? request.getCurrency() : "USD");
         plan.setGracePeriodDays(request.getGracePeriodDays());
         plan.setFreeDays(request.getFreeDays());
         plan.setIsActive(request.getIsActive());
-        
+
         SubscriptionPlan saved = subscriptionPlanRepository.save(plan);
         log.info("Created subscription plan: {}", saved.getPlanName());
-        
+
         return mapToSubscriptionPlanDTO(saved);
     }
 
@@ -373,20 +395,40 @@ public class AdminService {
     public SubscriptionPlanDTO updateSubscriptionPlan(Long subscriptionId, CreateSubscriptionPlanRequest request) {
         SubscriptionPlan plan = subscriptionPlanRepository.findById(subscriptionId)
                 .orElseThrow(() -> new RuntimeException("Subscription plan not found with id: " + subscriptionId));
-        
+
+        validateTargetExists(request.getTargetType(), request.getTargetId());
+
+        // Guard: prevent changing target to one that already has another active plan
+        boolean duplicatePlanExists = switch (request.getTargetType()) {
+            case CLASS -> subscriptionPlanRepository.findByClassIdAndIsActiveTrue(request.getTargetId())
+                    .filter(existing -> !existing.getSubscriptionId().equals(subscriptionId)).isPresent();
+            case SUBJECT -> subscriptionPlanRepository.findBySubjectIdAndIsActiveTrue(request.getTargetId())
+                    .filter(existing -> !existing.getSubscriptionId().equals(subscriptionId)).isPresent();
+            case TOPIC -> subscriptionPlanRepository.findByTopicIdAndIsActiveTrue(request.getTargetId())
+                    .filter(existing -> !existing.getSubscriptionId().equals(subscriptionId)).isPresent();
+        };
+        if (duplicatePlanExists) {
+            throw new RuntimeException("An active subscription plan already exists for this "
+                    + request.getTargetType().name().toLowerCase() + ". Edit the existing plan instead.");
+        }
+
         plan.setPlanName(request.getPlanName());
         plan.setTargetType(request.getTargetType());
-        plan.setTargetId(request.getTargetId());
+        // Reset all FK columns before setting the correct one
+        plan.setClassId(null);
+        plan.setSubjectId(null);
+        plan.setTopicId(null);
+        setTypedTargetId(plan, request.getTargetType(), request.getTargetId());
         plan.setDurationDays(request.getDurationDays());
         plan.setPrice(request.getPrice());
         plan.setCurrency(request.getCurrency() != null ? request.getCurrency() : "USD");
         plan.setGracePeriodDays(request.getGracePeriodDays());
         plan.setFreeDays(request.getFreeDays());
         plan.setIsActive(request.getIsActive());
-        
+
         SubscriptionPlan updated = subscriptionPlanRepository.save(plan);
         log.info("Updated subscription plan: {}", updated.getPlanName());
-        
+
         return mapToSubscriptionPlanDTO(updated);
     }
 
@@ -472,15 +514,92 @@ public class AdminService {
 
     // ============ Helper Methods for Subscriptions ============
 
+    /**
+     * Maps a SubscriptionPlan to DTO in a single pass through the hierarchy —
+     * computes targetName, targetFullPath, contextClassId, and contextSubjectId
+     * without duplicate repository lookups.
+     *
+     * contextClassId  — class owning the target (populated for all types)
+     * contextSubjectId — subject owning the topic (populated for TOPIC only)
+     * These context IDs let the frontend pre-populate cascading dropdowns on edit.
+     */
     private SubscriptionPlanDTO mapToSubscriptionPlanDTO(SubscriptionPlan plan) {
-        String targetName = getTargetName(plan.getTargetType(), plan.getTargetId());
-        
+        String targetName;
+        String targetFullPath;
+        Long contextClassId = null;
+        Long contextSubjectId = null;
+
+        switch (plan.getTargetType()) {
+            case CLASS -> {
+                if (plan.getClassId() == null) {
+                    targetName = "Unknown Class";
+                    targetFullPath = "Unknown Class";
+                } else {
+                    EdClass cls = classRepository.findById(plan.getClassId()).orElse(null);
+                    targetName = cls != null ? cls.getClassName() : "Unknown Class";
+                    targetFullPath = targetName;
+                    contextClassId = plan.getClassId();
+                }
+            }
+            case SUBJECT -> {
+                if (plan.getSubjectId() == null) {
+                    targetName = "Unknown Subject";
+                    targetFullPath = "Unknown Subject";
+                } else {
+                    EdSubject subject = subjectRepository.findById(plan.getSubjectId()).orElse(null);
+                    if (subject == null) {
+                        targetName = "Unknown Subject";
+                        targetFullPath = "Unknown Subject";
+                    } else {
+                        EdClass cls = classRepository.findById(subject.getClassId()).orElse(null);
+                        String clsName = cls != null ? cls.getClassName() : "Unknown Class";
+                        targetName = subject.getSubjectName();
+                        targetFullPath = clsName + " > " + subject.getSubjectName();
+                        contextClassId = subject.getClassId();
+                    }
+                }
+            }
+            case TOPIC -> {
+                if (plan.getTopicId() == null) {
+                    targetName = "Unknown Topic";
+                    targetFullPath = "Unknown Topic";
+                } else {
+                    EdTopic topic = topicRepository.findById(plan.getTopicId()).orElse(null);
+                    if (topic == null) {
+                        targetName = "Unknown Topic";
+                        targetFullPath = "Unknown Topic";
+                    } else {
+                        EdSubject subject = subjectRepository.findById(topic.getSubjectId()).orElse(null);
+                        if (subject == null) {
+                            targetName = topic.getTopicName();
+                            targetFullPath = "Unknown Subject > " + topic.getTopicName();
+                            contextSubjectId = topic.getSubjectId();
+                        } else {
+                            EdClass cls = classRepository.findById(subject.getClassId()).orElse(null);
+                            String clsName = cls != null ? cls.getClassName() : "Unknown Class";
+                            targetName = topic.getTopicName();
+                            targetFullPath = clsName + " > " + subject.getSubjectName() + " > " + topic.getTopicName();
+                            contextClassId = subject.getClassId();
+                            contextSubjectId = topic.getSubjectId();
+                        }
+                    }
+                }
+            }
+            default -> {
+                targetName = "Unknown";
+                targetFullPath = "Unknown";
+            }
+        }
+
         return SubscriptionPlanDTO.builder()
                 .subscriptionId(plan.getSubscriptionId())
                 .planName(plan.getPlanName())
                 .targetType(plan.getTargetType())
                 .targetId(plan.getTargetId())
                 .targetName(targetName)
+                .targetFullPath(targetFullPath)
+                .contextClassId(contextClassId)
+                .contextSubjectId(contextSubjectId)
                 .durationDays(plan.getDurationDays())
                 .price(plan.getPrice())
                 .currency(plan.getCurrency())
@@ -490,22 +609,24 @@ public class AdminService {
                 .build();
     }
 
-    private String getTargetName(SubscriptionPlan.TargetType targetType, Long targetId) {
-        switch (targetType) {
-            case CLASS:
-                return classRepository.findById(targetId)
-                        .map(EdClass::getClassName)
-                        .orElse("Unknown Class");
-            case SUBJECT:
-                return subjectRepository.findById(targetId)
-                        .map(EdSubject::getSubjectName)
-                        .orElse("Unknown Subject");
-            case TOPIC:
-                return topicRepository.findById(targetId)
-                        .map(EdTopic::getTopicName)
-                        .orElse("Unknown Topic");
-            default:
-                return "Unknown";
+    /** Routes the incoming targetId to the correct typed FK column. */
+    private void setTypedTargetId(SubscriptionPlan plan, SubscriptionPlan.TargetType type, Long id) {
+        switch (type) {
+            case CLASS -> plan.setClassId(id);
+            case SUBJECT -> plan.setSubjectId(id);
+            case TOPIC -> plan.setTopicId(id);
+        }
+    }
+
+    /** Validates that the referenced entity actually exists. */
+    private void validateTargetExists(SubscriptionPlan.TargetType type, Long id) {
+        switch (type) {
+            case CLASS -> classRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Class not found with id: " + id));
+            case SUBJECT -> subjectRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Subject not found with id: " + id));
+            case TOPIC -> topicRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Topic not found with id: " + id));
         }
     }
 

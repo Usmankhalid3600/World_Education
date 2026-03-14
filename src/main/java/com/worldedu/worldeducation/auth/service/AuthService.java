@@ -81,6 +81,26 @@ public class AuthService {
     }
 
     /**
+     * Deactivate the session identified by the JWT token.
+     * Called on explicit logout to prevent the session from being reused.
+     */
+    @Transactional
+    public void logoutByToken(String token) {
+        try {
+            Long sessionId = jwtUtil.extractSessionId(token);
+            if (sessionId != null) {
+                userSessionRepository.findById(sessionId).ifPresent(session -> {
+                    session.setIsActive(false);
+                    userSessionRepository.save(session);
+                    log.info("Session {} deactivated via logout", sessionId);
+                });
+            }
+        } catch (Exception e) {
+            log.debug("Could not extract sessionId for logout: {}", e.getMessage());
+        }
+    }
+
+    /**
      * Handle failed login attempt
      * Increments failed attempts counter and locks account if threshold reached
      */
@@ -138,11 +158,12 @@ public class AuthService {
         UserProfile userProfile = userProfileRepository.findById(user.getCustomerId())
                 .orElse(null);
 
-        // Generate JWT token
+        // Generate JWT token — embed sessionId for server-side session validation
         String token = jwtUtil.generateToken(
                 user.getUserId(),
                 user.getCustomerId(),
-                user.getUserCategory().name()
+                user.getUserCategory().name(),
+                session.getSessionId()
         );
 
         LoginResponse.LoginResponseBuilder responseBuilder = LoginResponse.builder()

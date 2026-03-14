@@ -1,395 +1,298 @@
 -- ====================================================================
--- COMPLETE TEST DATA FOR WORLD EDUCATION APPLICATION
+-- WORLD EDUCATION — CLEAN SEED DATA
 -- ====================================================================
--- This script creates comprehensive test data including:
--- 1. Admin and Student users
--- 2. Educational content (Classes, Subjects, Topics, Contents)
--- 3. Subscription plans (for classes, subjects, and topics)
--- 4. User subscriptions (opted plans)
--- 5. Payment records
+-- Run this script to wipe all existing data and load fresh test data.
+-- 3 Classes | Subjects per class | Topics per subject
+-- 1 Admin   | 2 Students
 -- ====================================================================
 
--- Clean up existing test data (optional - uncomment if needed)
--- DELETE FROM user_topic_subscriptions;
--- DELETE FROM user_subject_subscriptions;
--- DELETE FROM topic_contents;
--- DELETE FROM subscription_plans;
--- DELETE FROM ed_topics;
--- DELETE FROM ed_subjects;
--- DELETE FROM ed_classes;
--- DELETE FROM users_profile;
--- DELETE FROM users;
-
 -- ====================================================================
--- SECTION 1: USERS & PROFILES
+-- SECTION 0: SCHEMA FIX + CLEAN UP
 -- ====================================================================
 
--- Insert ADMIN User
--- User ID: admin001, Password: Admin@123
-INSERT INTO users (user_id, password_hash, failed_login_attempts, account_locked, user_category, created_at, updated_at, signUp_method)
-VALUES ('admin001', 
-        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 
-        0, 
-        false, 
-        'ADMIN', 
-        NOW(), 
-        NOW(),
-        'DATA');
+-- Fix subscription_plans table: remove legacy target_id column if it exists,
+-- and ensure the typed FK columns are present (Hibernate ddl-auto=update
+-- adds new columns but never drops old ones).
+ALTER TABLE subscription_plans
+    MODIFY COLUMN class_id   BIGINT NULL,
+    MODIFY COLUMN subject_id BIGINT NULL,
+    MODIFY COLUMN topic_id   BIGINT NULL;
 
--- Insert STUDENT Users
--- User ID: student001, Password: Student@123
-INSERT INTO users (user_id, password_hash, failed_login_attempts, account_locked, user_category, created_at, updated_at, signUp_method)
-VALUES ('student001', 
-        '$2a$10$8cjz47bjbR4Mn8GMjpb7COa8yT8FG5Dlg0ZwVjZmJ0xLCKp0/KQnq', 
-        0, 
-        false, 
-        'STUDENT', 
-        NOW(), 
-        NOW(),
-        'DATA');
+ALTER TABLE subscription_plans
+    DROP COLUMN IF EXISTS target_id;
 
--- User ID: student002, Password: Student@123
-INSERT INTO users (user_id, password_hash, failed_login_attempts, account_locked, user_category, created_at, updated_at, signUp_method)
-VALUES ('student002', 
-        '$2a$10$8cjz47bjbR4Mn8GMjpb7COa8yT8FG5Dlg0ZwVjZmJ0xLCKp0/KQnq', 
-        0, 
-        false, 
-        'STUDENT', 
-        NOW(), 
-        NOW(),
-        'DATA');
+-- Add is_free column to topic_contents if it doesn't exist yet
+-- (Hibernate ddl-auto=update will add it on first boot, but this ensures
+--  the seed script can run before the app restarts.)
+ALTER TABLE topic_contents
+    ADD COLUMN IF NOT EXISTS is_free TINYINT(1) NOT NULL DEFAULT 0;
 
--- User ID: student003, Password: Student@123
-INSERT INTO users (user_id, password_hash, failed_login_attempts, account_locked, user_category, created_at, updated_at, signUp_method)
-VALUES ('student003', 
-        '$2a$10$8cjz47bjbR4Mn8GMjpb7COa8yT8FG5Dlg0ZwVjZmJ0xLCKp0/KQnq', 
-        0, 
-        false, 
-        'STUDENT', 
-        NOW(), 
-        NOW(),
-        'DATA');
+-- Add description column to ed_classes, ed_subjects, ed_topics
+ALTER TABLE ed_classes
+    ADD COLUMN IF NOT EXISTS description TEXT NULL;
 
--- Get customer IDs
-SET @admin_id = (SELECT customer_id FROM users WHERE user_id = 'admin001');
+ALTER TABLE ed_subjects
+    ADD COLUMN IF NOT EXISTS description TEXT NULL;
+
+ALTER TABLE ed_topics
+    ADD COLUMN IF NOT EXISTS description TEXT NULL;
+
+-- Delete all data in FK-safe order (children before parents)
+DELETE FROM user_topic_subscriptions;
+DELETE FROM user_subject_subscriptions;
+DELETE FROM topic_contents;
+DELETE FROM subscription_plan_history;
+DELETE FROM subscription_plans;
+DELETE FROM ed_topics;
+DELETE FROM ed_subjects;
+DELETE FROM ed_classes;
+DELETE FROM user_sessions;
+DELETE FROM code_verification;
+DELETE FROM users_profile;
+DELETE FROM users;
+
+-- ====================================================================
+-- SECTION 1: USERS
+-- ====================================================================
+-- All passwords = Admin@123
+-- Hash: 4f40a2075276602aba5c74e5ab3dc98bf00d140c800f82b2aa828e4692587f18
+
+INSERT INTO users (user_id, password_hash, failed_login_attempts, account_locked, user_category, created_at, updated_at, signUp_method)
+VALUES
+('admin001',   '4f40a2075276602aba5c74e5ab3dc98bf00d140c800f82b2aa828e4692587f18', 0, false, 'ADMIN',   NOW(), NOW(), 'DATA'),
+('student001', '4f40a2075276602aba5c74e5ab3dc98bf00d140c800f82b2aa828e4692587f18', 0, false, 'STUDENT', NOW(), NOW(), 'DATA'),
+('student002', '4f40a2075276602aba5c74e5ab3dc98bf00d140c800f82b2aa828e4692587f18', 0, false, 'STUDENT', NOW(), NOW(), 'DATA');
+
+SET @admin_id    = (SELECT customer_id FROM users WHERE user_id = 'admin001');
 SET @student1_id = (SELECT customer_id FROM users WHERE user_id = 'student001');
 SET @student2_id = (SELECT customer_id FROM users WHERE user_id = 'student002');
-SET @student3_id = (SELECT customer_id FROM users WHERE user_id = 'student003');
 
--- Insert User Profiles
 INSERT INTO users_profile (customer_id, first_name, middle_name, last_name, country, state, city, address, email, mobile_no, created_at, updated_at)
-VALUES 
-(@admin_id, 'Muhammad', 'Ali', 'Khan', 'Pakistan', 'Punjab', 'Lahore', 'DHA Phase 5, Block A', 'admin@worldedu.com', '+923001234567', NOW(), NOW()),
-(@student1_id, 'Ahmed', 'Hassan', 'Raza', 'Pakistan', 'Sindh', 'Karachi', 'Clifton Block 8', 'ahmed.raza@example.com', '+923211234567', NOW(), NOW()),
-(@student2_id, 'Fatima', 'Zahra', 'Sheikh', 'Pakistan', 'Punjab', 'Islamabad', 'F-7 Markaz', 'fatima.sheikh@example.com', '+923331234567', NOW(), NOW()),
-(@student3_id, 'Usman', 'Abdullah', 'Malik', 'Pakistan', 'KPK', 'Peshawar', 'University Town', 'usman.malik@example.com', '+923451234567', NOW(), NOW());
+VALUES
+(@admin_id,    'Ali',    NULL,      'Khan',   'Pakistan', 'Punjab', 'Lahore',    'DHA Phase 5',   'admin@worldedu.com',    '+923001234567', NOW(), NOW()),
+(@student1_id, 'Ahmed',  'Hassan',  'Raza',   'Pakistan', 'Sindh',  'Karachi',   'Clifton Block 8','ahmed@example.com',    '+923211234567', NOW(), NOW()),
+(@student2_id, 'Fatima', 'Zahra',   'Sheikh', 'Pakistan', 'Punjab', 'Islamabad', 'F-7 Markaz',    'fatima@example.com',   '+923331234567', NOW(), NOW());
 
 -- ====================================================================
--- SECTION 2: EDUCATIONAL CONTENT HIERARCHY
+-- SECTION 2: CLASSES
 -- ====================================================================
 
--- Insert Classes (Grades 1-10)
 INSERT INTO ed_classes (class_name, class_number, is_active, created_at)
-VALUES 
-('Grade 1', 1, true, NOW()),
-('Grade 2', 2, true, NOW()),
-('Grade 3', 3, true, NOW()),
-('Grade 4', 4, true, NOW()),
-('Grade 5', 5, true, NOW()),
-('Grade 6', 6, true, NOW()),
-('Grade 7', 7, true, NOW()),
-('Grade 8', 8, true, NOW()),
-('Grade 9', 9, true, NOW()),
+VALUES
+('Grade 5',  5,  true, NOW()),
+('Grade 8',  8,  true, NOW()),
 ('Grade 10', 10, true, NOW());
 
--- Get Class IDs
-SET @class1_id = (SELECT class_id FROM ed_classes WHERE class_number = 1);
-SET @class2_id = (SELECT class_id FROM ed_classes WHERE class_number = 2);
-SET @class3_id = (SELECT class_id FROM ed_classes WHERE class_number = 3);
-SET @class5_id = (SELECT class_id FROM ed_classes WHERE class_number = 5);
-SET @class8_id = (SELECT class_id FROM ed_classes WHERE class_number = 8);
+SET @class5_id  = (SELECT class_id FROM ed_classes WHERE class_number = 5);
+SET @class8_id  = (SELECT class_id FROM ed_classes WHERE class_number = 8);
+SET @class10_id = (SELECT class_id FROM ed_classes WHERE class_number = 10);
 
--- Insert Subjects for Grade 1
-INSERT INTO ed_subjects (class_id, subject_name, is_active, created_at)
-VALUES 
-(@class1_id, 'Mathematics', true, NOW()),
-(@class1_id, 'English', true, NOW()),
-(@class1_id, 'Urdu', true, NOW()),
-(@class1_id, 'Science', true, NOW()),
-(@class1_id, 'Islamiyat', true, NOW());
+-- ====================================================================
+-- SECTION 3: SUBJECTS
+-- ====================================================================
 
--- Insert Subjects for Grade 2
+-- Grade 5 subjects
 INSERT INTO ed_subjects (class_id, subject_name, is_active, created_at)
-VALUES 
-(@class2_id, 'Mathematics', true, NOW()),
-(@class2_id, 'English', true, NOW()),
-(@class2_id, 'Urdu', true, NOW()),
-(@class2_id, 'General Science', true, NOW()),
-(@class2_id, 'Social Studies', true, NOW());
+VALUES
+(@class5_id, 'Mathematics',     true, NOW()),
+(@class5_id, 'English',         true, NOW()),
+(@class5_id, 'General Science', true, NOW());
 
--- Insert Subjects for Grade 5
+-- Grade 8 subjects
 INSERT INTO ed_subjects (class_id, subject_name, is_active, created_at)
-VALUES 
-(@class5_id, 'Mathematics', true, NOW()),
-(@class5_id, 'English', true, NOW()),
-(@class5_id, 'Physics', true, NOW()),
-(@class5_id, 'Chemistry', true, NOW()),
-(@class5_id, 'Biology', true, NOW()),
-(@class5_id, 'Computer Science', true, NOW());
-
--- Insert Subjects for Grade 8
-INSERT INTO ed_subjects (class_id, subject_name, is_active, created_at)
-VALUES 
+VALUES
 (@class8_id, 'Mathematics', true, NOW()),
-(@class8_id, 'Physics', true, NOW()),
-(@class8_id, 'Chemistry', true, NOW()),
-(@class8_id, 'Biology', true, NOW()),
-(@class8_id, 'English', true, NOW()),
-(@class8_id, 'Computer Science', true, NOW());
+(@class8_id, 'Physics',     true, NOW()),
+(@class8_id, 'Chemistry',   true, NOW()),
+(@class8_id, 'English',     true, NOW());
 
--- Get Subject IDs for Grade 1
-SET @g1_math_id = (SELECT subject_id FROM ed_subjects WHERE class_id = @class1_id AND subject_name = 'Mathematics');
-SET @g1_english_id = (SELECT subject_id FROM ed_subjects WHERE class_id = @class1_id AND subject_name = 'English');
-SET @g1_urdu_id = (SELECT subject_id FROM ed_subjects WHERE class_id = @class1_id AND subject_name = 'Urdu');
-SET @g1_science_id = (SELECT subject_id FROM ed_subjects WHERE class_id = @class1_id AND subject_name = 'Science');
+-- Grade 10 subjects
+INSERT INTO ed_subjects (class_id, subject_name, is_active, created_at)
+VALUES
+(@class10_id, 'Mathematics',    true, NOW()),
+(@class10_id, 'Physics',        true, NOW()),
+(@class10_id, 'English',        true, NOW()),
+(@class10_id, 'Computer Science', true, NOW());
 
--- Get Subject IDs for Grade 5
-SET @g5_math_id = (SELECT subject_id FROM ed_subjects WHERE class_id = @class5_id AND subject_name = 'Mathematics');
-SET @g5_physics_id = (SELECT subject_id FROM ed_subjects WHERE class_id = @class5_id AND subject_name = 'Physics');
-SET @g5_chemistry_id = (SELECT subject_id FROM ed_subjects WHERE class_id = @class5_id AND subject_name = 'Chemistry');
-SET @g5_cs_id = (SELECT subject_id FROM ed_subjects WHERE class_id = @class5_id AND subject_name = 'Computer Science');
+-- Resolve subject IDs
+SET @g5_math_id    = (SELECT subject_id FROM ed_subjects WHERE class_id = @class5_id  AND subject_name = 'Mathematics');
+SET @g5_eng_id     = (SELECT subject_id FROM ed_subjects WHERE class_id = @class5_id  AND subject_name = 'English');
+SET @g5_sci_id     = (SELECT subject_id FROM ed_subjects WHERE class_id = @class5_id  AND subject_name = 'General Science');
 
--- Get Subject IDs for Grade 8
-SET @g8_math_id = (SELECT subject_id FROM ed_subjects WHERE class_id = @class8_id AND subject_name = 'Mathematics');
-SET @g8_physics_id = (SELECT subject_id FROM ed_subjects WHERE class_id = @class8_id AND subject_name = 'Physics');
+SET @g8_math_id    = (SELECT subject_id FROM ed_subjects WHERE class_id = @class8_id  AND subject_name = 'Mathematics');
+SET @g8_physics_id = (SELECT subject_id FROM ed_subjects WHERE class_id = @class8_id  AND subject_name = 'Physics');
+SET @g8_chem_id    = (SELECT subject_id FROM ed_subjects WHERE class_id = @class8_id  AND subject_name = 'Chemistry');
+SET @g8_eng_id     = (SELECT subject_id FROM ed_subjects WHERE class_id = @class8_id  AND subject_name = 'English');
 
--- Insert Topics for Grade 1 Mathematics
-INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
-VALUES 
-(@g1_math_id, 'Counting 1 to 100', DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW()),
-(@g1_math_id, 'Addition Basics', DATE_SUB(NOW(), INTERVAL 25 DAY), true, NOW()),
-(@g1_math_id, 'Subtraction Basics', DATE_SUB(NOW(), INTERVAL 20 DAY), true, NOW()),
-(@g1_math_id, 'Shapes and Patterns', DATE_SUB(NOW(), INTERVAL 15 DAY), true, NOW()),
-(@g1_math_id, 'Measurement Basics', DATE_SUB(NOW(), INTERVAL 10 DAY), true, NOW());
-
--- Insert Topics for Grade 1 English
-INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
-VALUES 
-(@g1_english_id, 'Alphabets A-Z', DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW()),
-(@g1_english_id, 'Phonics and Sounds', DATE_SUB(NOW(), INTERVAL 25 DAY), true, NOW()),
-(@g1_english_id, 'Simple Words', DATE_SUB(NOW(), INTERVAL 20 DAY), true, NOW()),
-(@g1_english_id, 'Reading Short Stories', DATE_SUB(NOW(), INTERVAL 15 DAY), true, NOW());
-
--- Insert Topics for Grade 1 Science
-INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
-VALUES 
-(@g1_science_id, 'Living Things', DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW()),
-(@g1_science_id, 'Plants and Animals', DATE_SUB(NOW(), INTERVAL 20 DAY), true, NOW()),
-(@g1_science_id, 'Water and Air', DATE_SUB(NOW(), INTERVAL 10 DAY), true, NOW());
-
--- Insert Topics for Grade 5 Mathematics
-INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
-VALUES 
-(@g5_math_id, 'Fractions and Decimals', DATE_SUB(NOW(), INTERVAL 40 DAY), true, NOW()),
-(@g5_math_id, 'Algebra Basics', DATE_SUB(NOW(), INTERVAL 35 DAY), true, NOW()),
-(@g5_math_id, 'Geometry - Angles and Triangles', DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW()),
-(@g5_math_id, 'Percentages', DATE_SUB(NOW(), INTERVAL 25 DAY), true, NOW()),
-(@g5_math_id, 'Data Handling', DATE_SUB(NOW(), INTERVAL 20 DAY), true, NOW());
-
--- Insert Topics for Grade 5 Physics
-INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
-VALUES 
-(@g5_physics_id, 'Force and Motion', DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW()),
-(@g5_physics_id, 'Energy Types', DATE_SUB(NOW(), INTERVAL 25 DAY), true, NOW()),
-(@g5_physics_id, 'Light and Sound', DATE_SUB(NOW(), INTERVAL 20 DAY), true, NOW()),
-(@g5_physics_id, 'Electricity Basics', DATE_SUB(NOW(), INTERVAL 15 DAY), true, NOW());
-
--- Insert Topics for Grade 5 Computer Science
-INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
-VALUES 
-(@g5_cs_id, 'Introduction to Computers', DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW()),
-(@g5_cs_id, 'MS Office Basics', DATE_SUB(NOW(), INTERVAL 25 DAY), true, NOW()),
-(@g5_cs_id, 'Internet and Email', DATE_SUB(NOW(), INTERVAL 20 DAY), true, NOW()),
-(@g5_cs_id, 'Basic Programming Concepts', DATE_SUB(NOW(), INTERVAL 15 DAY), true, NOW());
-
--- Insert Topics for Grade 8 Mathematics
-INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
-VALUES 
-(@g8_math_id, 'Quadratic Equations', DATE_SUB(NOW(), INTERVAL 40 DAY), true, NOW()),
-(@g8_math_id, 'Trigonometry Basics', DATE_SUB(NOW(), INTERVAL 35 DAY), true, NOW()),
-(@g8_math_id, 'Statistics and Probability', DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW());
-
--- Insert Topics for Grade 8 Physics
-INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
-VALUES 
-(@g8_physics_id, 'Newtons Laws of Motion', DATE_SUB(NOW(), INTERVAL 40 DAY), true, NOW()),
-(@g8_physics_id, 'Work, Power and Energy', DATE_SUB(NOW(), INTERVAL 35 DAY), true, NOW()),
-(@g8_physics_id, 'Waves and Sound', DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW());
-
--- Get some Topic IDs for later use
-SET @topic_counting = (SELECT topic_id FROM ed_topics WHERE topic_name = 'Counting 1 to 100');
-SET @topic_addition = (SELECT topic_id FROM ed_topics WHERE topic_name = 'Addition Basics');
-SET @topic_alphabets = (SELECT topic_id FROM ed_topics WHERE topic_name = 'Alphabets A-Z');
-SET @topic_phonics = (SELECT topic_id FROM ed_topics WHERE topic_name = 'Phonics and Sounds');
-SET @topic_fractions = (SELECT topic_id FROM ed_topics WHERE topic_name = 'Fractions and Decimals');
-SET @topic_algebra = (SELECT topic_id FROM ed_topics WHERE topic_name = 'Algebra Basics');
-SET @topic_force = (SELECT topic_id FROM ed_topics WHERE topic_name = 'Force and Motion');
-
--- Insert Sample Topic Content
-INSERT INTO topic_contents (topic_id, file_name, file_path_url, file_type, uploaded_by, uploaded_at, is_active)
-VALUES 
-(@topic_counting, 'counting_1_to_100.pdf', '/content/grade1/math/counting_1_to_100.pdf', 'PDF', @admin_id, NOW(), true),
-(@topic_addition, 'addition_basics.pdf', '/content/grade1/math/addition_basics.pdf', 'PDF', @admin_id, NOW(), true),
-(@topic_addition, 'addition_practice.pdf', '/content/grade1/math/addition_practice.pdf', 'PDF', @admin_id, NOW(), true),
-(@topic_alphabets, 'alphabets_az.pdf', '/content/grade1/english/alphabets_az.pdf', 'PDF', @admin_id, NOW(), true),
-(@topic_fractions, 'fractions_decimals.pdf', '/content/grade5/math/fractions_decimals.pdf', 'PDF', @admin_id, NOW(), true),
-(@topic_algebra, 'algebra_basics.pdf', '/content/grade5/math/algebra_basics.pdf', 'PDF', @admin_id, NOW(), true);
+SET @g10_math_id   = (SELECT subject_id FROM ed_subjects WHERE class_id = @class10_id AND subject_name = 'Mathematics');
+SET @g10_phys_id   = (SELECT subject_id FROM ed_subjects WHERE class_id = @class10_id AND subject_name = 'Physics');
+SET @g10_eng_id    = (SELECT subject_id FROM ed_subjects WHERE class_id = @class10_id AND subject_name = 'English');
+SET @g10_cs_id     = (SELECT subject_id FROM ed_subjects WHERE class_id = @class10_id AND subject_name = 'Computer Science');
 
 -- ====================================================================
--- SECTION 3: SUBSCRIPTION PLANS
+-- SECTION 4: TOPICS
 -- ====================================================================
 
--- Subscription Plans for SUBJECTS (Grade 1)
-INSERT INTO subscription_plans (plan_name, target_type, target_id, duration_days, price, currency, grace_period_days, free_days, is_active, created_at, updated_at)
-VALUES 
-('Grade 1 Mathematics - Monthly', 'SUBJECT', @g1_math_id, 30, 500.00, 'PKR', 3, 7, true, NOW(), NOW()),
-('Grade 1 Mathematics - Quarterly', 'SUBJECT', @g1_math_id, 90, 1350.00, 'PKR', 5, 0, true, NOW(), NOW()),
-('Grade 1 English - Monthly', 'SUBJECT', @g1_english_id, 30, 450.00, 'PKR', 3, 7, true, NOW(), NOW()),
-('Grade 1 Science - Monthly', 'SUBJECT', @g1_science_id, 30, 400.00, 'PKR', 3, 5, true, NOW(), NOW()),
-('Grade 1 Urdu - Monthly', 'SUBJECT', @g1_urdu_id, 30, 350.00, 'PKR', 3, 7, true, NOW(), NOW());
+-- Grade 5 Mathematics
+INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
+VALUES
+(@g5_math_id, 'Fractions and Decimals',         DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW()),
+(@g5_math_id, 'Percentages',                    DATE_SUB(NOW(), INTERVAL 25 DAY), true, NOW()),
+(@g5_math_id, 'Geometry – Angles and Triangles',DATE_SUB(NOW(), INTERVAL 20 DAY), true, NOW()),
+(@g5_math_id, 'Data Handling',                  DATE_SUB(NOW(), INTERVAL 15 DAY), true, NOW());
 
--- Subscription Plans for SUBJECTS (Grade 5)
-INSERT INTO subscription_plans (plan_name, target_type, target_id, duration_days, price, currency, grace_period_days, free_days, is_active, created_at, updated_at)
-VALUES 
-('Grade 5 Mathematics - Monthly', 'SUBJECT', @g5_math_id, 30, 800.00, 'PKR', 3, 0, true, NOW(), NOW()),
-('Grade 5 Physics - Monthly', 'SUBJECT', @g5_physics_id, 30, 750.00, 'PKR', 3, 5, true, NOW(), NOW()),
-('Grade 5 Chemistry - Monthly', 'SUBJECT', @g5_chemistry_id, 30, 750.00, 'PKR', 3, 5, true, NOW(), NOW()),
-('Grade 5 Computer Science - Monthly', 'SUBJECT', @g5_cs_id, 30, 900.00, 'PKR', 3, 7, true, NOW(), NOW());
+-- Grade 5 English
+INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
+VALUES
+(@g5_eng_id, 'Reading Comprehension',   DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW()),
+(@g5_eng_id, 'Essay Writing',           DATE_SUB(NOW(), INTERVAL 20 DAY), true, NOW()),
+(@g5_eng_id, 'Grammar – Tenses',        DATE_SUB(NOW(), INTERVAL 10 DAY), true, NOW());
 
--- Subscription Plans for SUBJECTS (Grade 8)
-INSERT INTO subscription_plans (plan_name, target_type, target_id, duration_days, price, currency, grace_period_days, free_days, is_active, created_at, updated_at)
-VALUES 
-('Grade 8 Mathematics - Monthly', 'SUBJECT', @g8_math_id, 30, 1000.00, 'PKR', 5, 0, true, NOW(), NOW()),
-('Grade 8 Physics - Monthly', 'SUBJECT', @g8_physics_id, 30, 950.00, 'PKR', 5, 0, true, NOW(), NOW());
+-- Grade 5 General Science
+INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
+VALUES
+(@g5_sci_id, 'Living and Non-Living Things', DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW()),
+(@g5_sci_id, 'Human Body Systems',           DATE_SUB(NOW(), INTERVAL 20 DAY), true, NOW()),
+(@g5_sci_id, 'Forces and Simple Machines',   DATE_SUB(NOW(), INTERVAL 10 DAY), true, NOW());
 
--- Subscription Plans for TOPICS
-INSERT INTO subscription_plans (plan_name, target_type, target_id, duration_days, price, currency, grace_period_days, free_days, is_active, created_at, updated_at)
-VALUES 
-('Counting 1 to 100 - Monthly', 'TOPIC', @topic_counting, 30, 150.00, 'PKR', 2, 3, true, NOW(), NOW()),
-('Addition Basics - Monthly', 'TOPIC', @topic_addition, 30, 150.00, 'PKR', 2, 3, true, NOW(), NOW()),
-('Alphabets A-Z - Monthly', 'TOPIC', @topic_alphabets, 30, 120.00, 'PKR', 2, 5, true, NOW(), NOW()),
-('Phonics and Sounds - Monthly', 'TOPIC', @topic_phonics, 30, 120.00, 'PKR', 2, 5, true, NOW(), NOW()),
-('Fractions and Decimals - Monthly', 'TOPIC', @topic_fractions, 30, 200.00, 'PKR', 3, 0, true, NOW(), NOW()),
-('Algebra Basics - Monthly', 'TOPIC', @topic_algebra, 30, 250.00, 'PKR', 3, 0, true, NOW(), NOW()),
-('Force and Motion - Monthly', 'TOPIC', @topic_force, 30, 200.00, 'PKR', 3, 5, true, NOW(), NOW());
+-- Grade 8 Mathematics
+INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
+VALUES
+(@g8_math_id, 'Linear Equations',        DATE_SUB(NOW(), INTERVAL 40 DAY), true, NOW()),
+(@g8_math_id, 'Quadratic Equations',     DATE_SUB(NOW(), INTERVAL 35 DAY), true, NOW()),
+(@g8_math_id, 'Trigonometry Basics',     DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW()),
+(@g8_math_id, 'Statistics',              DATE_SUB(NOW(), INTERVAL 20 DAY), true, NOW());
 
--- Subscription Plans for CLASSES (Full Grade Access)
-INSERT INTO subscription_plans (plan_name, target_type, target_id, duration_days, price, currency, grace_period_days, free_days, is_active, created_at, updated_at)
-VALUES 
-('Grade 1 - Full Access Monthly', 'CLASS', @class1_id, 30, 1500.00, 'PKR', 5, 14, true, NOW(), NOW()),
-('Grade 1 - Full Access Yearly', 'CLASS', @class1_id, 365, 15000.00, 'PKR', 10, 0, true, NOW(), NOW()),
-('Grade 5 - Full Access Monthly', 'CLASS', @class5_id, 30, 3000.00, 'PKR', 5, 7, true, NOW(), NOW()),
-('Grade 8 - Full Access Monthly', 'CLASS', @class8_id, 30, 3500.00, 'PKR', 5, 0, true, NOW(), NOW());
+-- Grade 8 Physics
+INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
+VALUES
+(@g8_physics_id, 'Newton\'s Laws of Motion', DATE_SUB(NOW(), INTERVAL 40 DAY), true, NOW()),
+(@g8_physics_id, 'Work, Power and Energy',   DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW()),
+(@g8_physics_id, 'Waves and Sound',          DATE_SUB(NOW(), INTERVAL 20 DAY), true, NOW());
+
+-- Grade 8 Chemistry
+INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
+VALUES
+(@g8_chem_id, 'Atomic Structure',     DATE_SUB(NOW(), INTERVAL 35 DAY), true, NOW()),
+(@g8_chem_id, 'Chemical Bonding',     DATE_SUB(NOW(), INTERVAL 25 DAY), true, NOW()),
+(@g8_chem_id, 'Acids and Bases',      DATE_SUB(NOW(), INTERVAL 15 DAY), true, NOW());
+
+-- Grade 8 English
+INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
+VALUES
+(@g8_eng_id, 'Advanced Essay Writing', DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW()),
+(@g8_eng_id, 'Poetry Analysis',        DATE_SUB(NOW(), INTERVAL 20 DAY), true, NOW());
+
+-- Grade 10 Mathematics
+INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
+VALUES
+(@g10_math_id, 'Calculus – Derivatives',  DATE_SUB(NOW(), INTERVAL 45 DAY), true, NOW()),
+(@g10_math_id, 'Integration Basics',      DATE_SUB(NOW(), INTERVAL 35 DAY), true, NOW()),
+(@g10_math_id, 'Matrices',                DATE_SUB(NOW(), INTERVAL 25 DAY), true, NOW()),
+(@g10_math_id, 'Probability',             DATE_SUB(NOW(), INTERVAL 15 DAY), true, NOW());
+
+-- Grade 10 Physics
+INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
+VALUES
+(@g10_phys_id, 'Electromagnetism',    DATE_SUB(NOW(), INTERVAL 40 DAY), true, NOW()),
+(@g10_phys_id, 'Modern Physics',      DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW()),
+(@g10_phys_id, 'Optics',              DATE_SUB(NOW(), INTERVAL 20 DAY), true, NOW());
+
+-- Grade 10 Computer Science
+INSERT INTO ed_topics (subject_id, topic_name, publish_date, is_active, created_at)
+VALUES
+(@g10_cs_id, 'Programming in C++',      DATE_SUB(NOW(), INTERVAL 40 DAY), true, NOW()),
+(@g10_cs_id, 'Data Structures Basics',  DATE_SUB(NOW(), INTERVAL 30 DAY), true, NOW()),
+(@g10_cs_id, 'Database Fundamentals',   DATE_SUB(NOW(), INTERVAL 20 DAY), true, NOW());
 
 -- ====================================================================
--- SECTION 4: USER SUBSCRIPTIONS (OPTED SUBJECTS & TOPICS)
+-- SECTION 5: SUBSCRIPTION PLANS
 -- ====================================================================
 
--- Student1 subscriptions to SUBJECTS
+-- ── CLASS plans ──────────────────────────────────────────────────────
+INSERT INTO subscription_plans (plan_name, target_type, class_id, duration_days, price, currency, grace_period_days, free_days, is_active, created_at, updated_at)
+VALUES
+('Grade 5 – Full Access Monthly',  'CLASS', @class5_id,  30, 2500.00, 'PKR', 5, 7, true, NOW(), NOW()),
+('Grade 8 – Full Access Monthly',  'CLASS', @class8_id,  30, 3000.00, 'PKR', 5, 5, true, NOW(), NOW()),
+('Grade 10 – Full Access Monthly', 'CLASS', @class10_id, 30, 3500.00, 'PKR', 5, 0, true, NOW(), NOW());
+
+-- ── SUBJECT plans ────────────────────────────────────────────────────
+INSERT INTO subscription_plans (plan_name, target_type, subject_id, duration_days, price, currency, grace_period_days, free_days, is_active, created_at, updated_at)
+VALUES
+-- Grade 5
+('Grade 5 Mathematics – Monthly',    'SUBJECT', @g5_math_id,    30,  800.00, 'PKR', 3, 7, true, NOW(), NOW()),
+('Grade 5 English – Monthly',        'SUBJECT', @g5_eng_id,     30,  700.00, 'PKR', 3, 7, true, NOW(), NOW()),
+('Grade 5 General Science – Monthly','SUBJECT', @g5_sci_id,     30,  700.00, 'PKR', 3, 5, true, NOW(), NOW()),
+-- Grade 8
+('Grade 8 Mathematics – Monthly',    'SUBJECT', @g8_math_id,    30, 1000.00, 'PKR', 3, 0, true, NOW(), NOW()),
+('Grade 8 Physics – Monthly',        'SUBJECT', @g8_physics_id, 30,  950.00, 'PKR', 3, 0, true, NOW(), NOW()),
+('Grade 8 Chemistry – Monthly',      'SUBJECT', @g8_chem_id,    30,  950.00, 'PKR', 3, 0, true, NOW(), NOW()),
+('Grade 8 English – Monthly',        'SUBJECT', @g8_eng_id,     30,  800.00, 'PKR', 3, 5, true, NOW(), NOW()),
+-- Grade 10
+('Grade 10 Mathematics – Monthly',   'SUBJECT', @g10_math_id,   30, 1200.00, 'PKR', 5, 0, true, NOW(), NOW()),
+('Grade 10 Physics – Monthly',       'SUBJECT', @g10_phys_id,   30, 1150.00, 'PKR', 5, 0, true, NOW(), NOW()),
+('Grade 10 Computer Science – Monthly','SUBJECT',@g10_cs_id,    30, 1100.00, 'PKR', 5, 0, true, NOW(), NOW());
+
+-- ── TOPIC plans ──────────────────────────────────────────────────────
+-- (a selection of key topics)
+
+SET @t_fractions  = (SELECT topic_id FROM ed_topics WHERE topic_name = 'Fractions and Decimals');
+SET @t_quadratic  = (SELECT topic_id FROM ed_topics WHERE topic_name = 'Quadratic Equations');
+SET @t_newton     = (SELECT topic_id FROM ed_topics WHERE topic_name = 'Newton\'s Laws of Motion');
+SET @t_calculus   = (SELECT topic_id FROM ed_topics WHERE topic_name = 'Calculus – Derivatives');
+SET @t_cpp        = (SELECT topic_id FROM ed_topics WHERE topic_name = 'Programming in C++');
+
+INSERT INTO subscription_plans (plan_name, target_type, topic_id, duration_days, price, currency, grace_period_days, free_days, is_active, created_at, updated_at)
+VALUES
+('Fractions and Decimals – Monthly', 'TOPIC', @t_fractions, 30, 200.00, 'PKR', 2, 3, true, NOW(), NOW()),
+('Quadratic Equations – Monthly',    'TOPIC', @t_quadratic, 30, 250.00, 'PKR', 2, 0, true, NOW(), NOW()),
+('Newton\'s Laws – Monthly',         'TOPIC', @t_newton,    30, 250.00, 'PKR', 2, 3, true, NOW(), NOW()),
+('Calculus Derivatives – Monthly',   'TOPIC', @t_calculus,  30, 300.00, 'PKR', 3, 0, true, NOW(), NOW()),
+('Programming in C++ – Monthly',     'TOPIC', @t_cpp,       30, 300.00, 'PKR', 3, 0, true, NOW(), NOW());
+
+-- ====================================================================
+-- SECTION 6: STUDENT SUBSCRIPTIONS
+-- ====================================================================
+
+-- student001 → subscribed to Grade 5 Maths and General Science subjects
 INSERT INTO user_subject_subscriptions (customer_id, subject_id, subscribed_at, is_active)
-VALUES 
-(@student1_id, @g1_math_id, DATE_SUB(NOW(), INTERVAL 15 DAY), true),
-(@student1_id, @g1_english_id, DATE_SUB(NOW(), INTERVAL 10 DAY), true);
+VALUES
+(@student1_id, @g5_math_id, DATE_SUB(NOW(), INTERVAL 10 DAY), true),
+(@student1_id, @g5_sci_id,  DATE_SUB(NOW(), INTERVAL  7 DAY), true);
 
--- Student2 subscriptions to SUBJECTS
+-- student001 → also subscribed to specific topic
+INSERT INTO user_topic_subscriptions (customer_id, topic_id, subscribed_at, is_active)
+VALUES
+(@student1_id, @t_fractions, DATE_SUB(NOW(), INTERVAL 9 DAY), true);
+
+-- student002 → subscribed to Grade 8 Physics and Grade 10 CS subjects
 INSERT INTO user_subject_subscriptions (customer_id, subject_id, subscribed_at, is_active)
-VALUES 
-(@student2_id, @g5_math_id, DATE_SUB(NOW(), INTERVAL 20 DAY), true),
-(@student2_id, @g5_physics_id, DATE_SUB(NOW(), INTERVAL 15 DAY), true),
-(@student2_id, @g5_cs_id, DATE_SUB(NOW(), INTERVAL 10 DAY), true);
+VALUES
+(@student2_id, @g8_physics_id, DATE_SUB(NOW(), INTERVAL 15 DAY), true),
+(@student2_id, @g10_cs_id,     DATE_SUB(NOW(), INTERVAL 10 DAY), true);
 
--- Student3 subscriptions to SUBJECTS
-INSERT INTO user_subject_subscriptions (customer_id, subject_id, subscribed_at, is_active)
-VALUES 
-(@student3_id, @g8_math_id, DATE_SUB(NOW(), INTERVAL 25 DAY), true),
-(@student3_id, @g8_physics_id, DATE_SUB(NOW(), INTERVAL 20 DAY), true);
-
--- Student1 subscriptions to TOPICS
+-- student002 → also subscribed to specific topics
 INSERT INTO user_topic_subscriptions (customer_id, topic_id, subscribed_at, is_active)
-VALUES 
-(@student1_id, @topic_counting, DATE_SUB(NOW(), INTERVAL 14 DAY), true),
-(@student1_id, @topic_addition, DATE_SUB(NOW(), INTERVAL 12 DAY), true),
-(@student1_id, @topic_alphabets, DATE_SUB(NOW(), INTERVAL 9 DAY), true);
-
--- Student2 subscriptions to TOPICS
-INSERT INTO user_topic_subscriptions (customer_id, topic_id, subscribed_at, is_active)
-VALUES 
-(@student2_id, @topic_fractions, DATE_SUB(NOW(), INTERVAL 18 DAY), true),
-(@student2_id, @topic_algebra, DATE_SUB(NOW(), INTERVAL 15 DAY), true),
-(@student2_id, @topic_force, DATE_SUB(NOW(), INTERVAL 12 DAY), true);
-
--- Student3 subscriptions to TOPICS (has subject subscription but also specific topics)
-INSERT INTO user_topic_subscriptions (customer_id, topic_id, subscribed_at, is_active)
-VALUES 
-(@student3_id, @topic_counting, DATE_SUB(NOW(), INTERVAL 5 DAY), true),
-(@student3_id, @topic_phonics, DATE_SUB(NOW(), INTERVAL 3 DAY), true);
+VALUES
+(@student2_id, @t_newton,  DATE_SUB(NOW(), INTERVAL 14 DAY), true),
+(@student2_id, @t_cpp,     DATE_SUB(NOW(), INTERVAL  9 DAY), true);
 
 -- ====================================================================
--- DATA SUMMARY
+-- SECTION 7: SUMMARY
 -- ====================================================================
 
--- Display summary information
-SELECT '====================================================================';
-SELECT 'TEST DATA LOADED SUCCESSFULLY!';
-SELECT '====================================================================';
-SELECT '';
-SELECT 'USERS CREATED:';
-SELECT '  Admin:';
-SELECT '    User ID: admin001';
-SELECT '    Password: Admin@123';
-SELECT '    Email: admin@worldedu.com';
-SELECT '';
-SELECT '  Students:';
-SELECT '    User ID: student001, Password: Student@123, Email: ahmed.raza@example.com';
-SELECT '    User ID: student002, Password: Student@123, Email: fatima.sheikh@example.com';
-SELECT '    User ID: student003, Password: Student@123, Email: usman.malik@example.com';
-SELECT '';
-SELECT 'EDUCATIONAL CONTENT:';
-SELECT CONCAT('  Classes: ', (SELECT COUNT(*) FROM ed_classes), ' grades');
-SELECT CONCAT('  Subjects: ', (SELECT COUNT(*) FROM ed_subjects), ' subjects across all grades');
-SELECT CONCAT('  Topics: ', (SELECT COUNT(*) FROM ed_topics), ' topics');
-SELECT CONCAT('  Contents: ', (SELECT COUNT(*) FROM topic_contents), ' content files');
-SELECT '';
-SELECT 'SUBSCRIPTION PLANS:';
-SELECT CONCAT('  Total Plans: ', (SELECT COUNT(*) FROM subscription_plans));
-SELECT CONCAT('  Subject Plans: ', (SELECT COUNT(*) FROM subscription_plans WHERE target_type = 'SUBJECT'));
-SELECT CONCAT('  Topic Plans: ', (SELECT COUNT(*) FROM subscription_plans WHERE target_type = 'TOPIC'));
-SELECT CONCAT('  Class Plans: ', (SELECT COUNT(*) FROM subscription_plans WHERE target_type = 'CLASS'));
-SELECT '';
-SELECT 'USER SUBSCRIPTIONS:';
-SELECT CONCAT('  Subject Subscriptions: ', (SELECT COUNT(*) FROM user_subject_subscriptions));
-SELECT CONCAT('  Topic Subscriptions: ', (SELECT COUNT(*) FROM user_topic_subscriptions));
-SELECT '';
-SELECT 'STUDENT SUBSCRIPTION DETAILS:';
-SELECT '';
-SELECT 'student001 (Ahmed):';
-SELECT CONCAT('  - Opted Subjects: ', (SELECT COUNT(*) FROM user_subject_subscriptions WHERE customer_id = @student1_id));
-SELECT CONCAT('  - Opted Topics: ', (SELECT COUNT(*) FROM user_topic_subscriptions WHERE customer_id = @student1_id));
-SELECT '';
-SELECT 'student002 (Fatima):';
-SELECT CONCAT('  - Opted Subjects: ', (SELECT COUNT(*) FROM user_subject_subscriptions WHERE customer_id = @student2_id));
-SELECT CONCAT('  - Opted Topics: ', (SELECT COUNT(*) FROM user_topic_subscriptions WHERE customer_id = @student2_id));
-SELECT '';
-SELECT 'student003 (Usman):';
-SELECT CONCAT('  - Opted Subjects: ', (SELECT COUNT(*) FROM user_subject_subscriptions WHERE customer_id = @student3_id));
-SELECT CONCAT('  - Opted Topics: ', (SELECT COUNT(*) FROM user_topic_subscriptions WHERE customer_id = @student3_id));
-SELECT '';
-SELECT '====================================================================';
-SELECT 'You can now test the following scenarios:';
-SELECT '  1. Login as admin and manage content';
-SELECT '  2. Login as students and view opted/unopted subjects/topics';
-SELECT '  3. Test subscription plans and pricing display';
-SELECT '  4. Test search functionality with topics';
-SELECT '  5. Test admin endpoints with ADMIN role authorization';
-SELECT '  6. Test student endpoints with STUDENT role authorization';
-SELECT '====================================================================';
+SELECT '=== SEED DATA LOADED SUCCESSFULLY ===' AS status;
+
+SELECT CONCAT('Users:    ', COUNT(*)) AS info FROM users;
+SELECT CONCAT('Classes:  ', COUNT(*)) AS info FROM ed_classes;
+SELECT CONCAT('Subjects: ', COUNT(*)) AS info FROM ed_subjects;
+SELECT CONCAT('Topics:   ', COUNT(*)) AS info FROM ed_topics;
+SELECT CONCAT('Plans:    ', COUNT(*)) AS info FROM subscription_plans;
+SELECT CONCAT('  CLASS plans:   ', COUNT(*)) AS info FROM subscription_plans WHERE target_type = 'CLASS';
+SELECT CONCAT('  SUBJECT plans: ', COUNT(*)) AS info FROM subscription_plans WHERE target_type = 'SUBJECT';
+SELECT CONCAT('  TOPIC plans:   ', COUNT(*)) AS info FROM subscription_plans WHERE target_type = 'TOPIC';
+
+SELECT '=== CREDENTIALS ===' AS info;
+SELECT 'admin001   / Admin@123  (ADMIN)'   AS credentials;
+SELECT 'student001 / Admin@123  (STUDENT)' AS credentials;
+SELECT 'student002 / Admin@123  (STUDENT)' AS credentials;

@@ -20,7 +20,9 @@ public class TopicDTO {
     private LocalDateTime publishDate;
     private Boolean isActive;
     private Boolean isOpted;
-    
+    private Boolean subscriptionInactive;
+    private String description;
+
     // Subscription plan information (for unopted topics)
     private BigDecimal subscriptionPrice;
     private String currency;

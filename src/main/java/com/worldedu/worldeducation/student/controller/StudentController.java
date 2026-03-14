@@ -1,10 +1,11 @@
 package com.worldedu.worldeducation.student.controller;
 
+import com.worldedu.worldeducation.auth.entity.User;
 import com.worldedu.worldeducation.student.dto.*;
 import com.worldedu.worldeducation.student.service.StudentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,9 +22,8 @@ public class StudentController {
     // Get all available subscription plans
     @GetMapping("/subscription-plans")
     public ResponseEntity<List<AvailableSubscriptionPlanDTO>> getAvailableSubscriptionPlans(
-            Authentication authentication) {
-        Long customerId = Long.parseLong(authentication.getName());
-        List<AvailableSubscriptionPlanDTO> plans = studentService.getAvailableSubscriptionPlans(customerId);
+            @AuthenticationPrincipal User user) {
+        List<AvailableSubscriptionPlanDTO> plans = studentService.getAvailableSubscriptionPlans(user.getCustomerId());
         return ResponseEntity.ok(plans);
     }
 
@@ -31,25 +31,22 @@ public class StudentController {
     @GetMapping("/subscription-plans/{type}")
     public ResponseEntity<List<AvailableSubscriptionPlanDTO>> getSubscriptionPlansByType(
             @PathVariable String type,
-            Authentication authentication) {
-        Long customerId = Long.parseLong(authentication.getName());
-        List<AvailableSubscriptionPlanDTO> plans = studentService.getSubscriptionPlansByType(customerId, type);
+            @AuthenticationPrincipal User user) {
+        List<AvailableSubscriptionPlanDTO> plans = studentService.getSubscriptionPlansByType(user.getCustomerId(), type);
         return ResponseEntity.ok(plans);
     }
 
     // Get my active subscriptions
     @GetMapping("/my-subscriptions")
-    public ResponseEntity<List<MySubscriptionDTO>> getMySubscriptions(Authentication authentication) {
-        Long customerId = Long.parseLong(authentication.getName());
-        List<MySubscriptionDTO> subscriptions = studentService.getMySubscriptions(customerId);
+    public ResponseEntity<List<MySubscriptionDTO>> getMySubscriptions(@AuthenticationPrincipal User user) {
+        List<MySubscriptionDTO> subscriptions = studentService.getMySubscriptions(user.getCustomerId());
         return ResponseEntity.ok(subscriptions);
     }
 
     // Get user profile
     @GetMapping("/profile")
-    public ResponseEntity<ProfileDTO> getUserProfile(Authentication authentication) {
-        Long customerId = Long.parseLong(authentication.getName());
-        ProfileDTO profile = studentService.getUserProfile(customerId);
+    public ResponseEntity<ProfileDTO> getUserProfile(@AuthenticationPrincipal User user) {
+        ProfileDTO profile = studentService.getUserProfile(user.getCustomerId());
         return ResponseEntity.ok(profile);
     }
 
@@ -57,9 +54,8 @@ public class StudentController {
     @PutMapping("/profile")
     public ResponseEntity<ProfileDTO> updateUserProfile(
             @RequestBody UpdateProfileRequest request,
-            Authentication authentication) {
-        Long customerId = Long.parseLong(authentication.getName());
-        ProfileDTO profile = studentService.updateUserProfile(customerId, request);
+            @AuthenticationPrincipal User user) {
+        ProfileDTO profile = studentService.updateUserProfile(user.getCustomerId(), request);
         return ResponseEntity.ok(profile);
     }
 
@@ -67,10 +63,9 @@ public class StudentController {
     @PutMapping("/change-password")
     public ResponseEntity<Map<String, String>> changePassword(
             @RequestBody ChangePasswordRequest request,
-            Authentication authentication) {
+            @AuthenticationPrincipal User user) {
         try {
-            Long customerId = Long.parseLong(authentication.getName());
-            studentService.changePassword(customerId, request);
+            studentService.changePassword(user.getCustomerId(), request);
             return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -81,9 +76,8 @@ public class StudentController {
     @GetMapping("/search-topics")
     public ResponseEntity<List<TopicSearchResultDTO>> searchTopics(
             @RequestParam String query,
-            Authentication authentication) {
-        Long customerId = Long.parseLong(authentication.getName());
-        List<TopicSearchResultDTO> results = studentService.searchTopics(customerId, query);
+            @AuthenticationPrincipal User user) {
+        List<TopicSearchResultDTO> results = studentService.searchTopics(user.getCustomerId(), query);
         return ResponseEntity.ok(results);
     }
 }

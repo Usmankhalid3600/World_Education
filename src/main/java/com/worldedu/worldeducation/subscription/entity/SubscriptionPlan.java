@@ -27,8 +27,15 @@ public class SubscriptionPlan {
     @Enumerated(EnumType.STRING)
     private TargetType targetType;
 
-    @Column(name = "target_id", nullable = false)
-    private Long targetId;
+    // Explicit FK columns — exactly one is non-null, determined by target_type
+    @Column(name = "class_id")
+    private Long classId;
+
+    @Column(name = "subject_id")
+    private Long subjectId;
+
+    @Column(name = "topic_id")
+    private Long topicId;
 
     @Column(name = "duration_days")
     private Integer durationDays;
@@ -63,6 +70,19 @@ public class SubscriptionPlan {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * Returns the concrete target ID based on target_type.
+     * CLASS → classId, SUBJECT → subjectId, TOPIC → topicId.
+     */
+    public Long getTargetId() {
+        if (targetType == null) return null;
+        return switch (targetType) {
+            case CLASS -> classId;
+            case SUBJECT -> subjectId;
+            case TOPIC -> topicId;
+        };
     }
 
     public enum TargetType {

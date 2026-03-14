@@ -17,4 +17,6 @@ public interface UserSubjectSubscriptionRepository extends JpaRepository<UserSub
     Optional<UserSubjectSubscription> findByCustomerIdAndSubjectId(Long customerId, Long subjectId);
     
     boolean existsByCustomerIdAndSubjectIdAndIsActiveTrue(Long customerId, Long subjectId);
+
+    boolean existsByCustomerIdAndSubjectIdAndIsActiveFalse(Long customerId, Long subjectId);
 }

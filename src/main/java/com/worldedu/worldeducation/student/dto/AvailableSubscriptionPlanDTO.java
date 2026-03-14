@@ -14,7 +14,8 @@ public class AvailableSubscriptionPlanDTO {
     private String planName;
     private String targetType; // CLASS, SUBJECT, TOPIC
     private Long targetId;
-    private String targetName; // Name of the class/subject/topic
+    private String targetName;     // Short name: e.g. "Mathematics"
+    private String targetFullPath; // Full hierarchy: e.g. "Grade 5 > Mathematics" or "Grade 5 > Physics > Force and Motion"
     private Integer durationDays;
     private BigDecimal price;
     private String currency;

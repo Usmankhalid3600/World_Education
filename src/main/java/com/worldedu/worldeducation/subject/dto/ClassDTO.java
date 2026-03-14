@@ -15,4 +15,5 @@ public class ClassDTO {
     private String className;
     private Integer classNumber;
     private Boolean isActive;
+    private String description;
 }

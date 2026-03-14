@@ -21,4 +21,7 @@ public class TopicContentListResponse {
     private String accessType;  // "TOPIC_SUBSCRIPTION" or "SUBJECT_SUBSCRIPTION"
     private List<TopicContentDTO> contents;
     private Integer totalContents;
+    private Boolean hasFreeContent;
+    private Integer freeContentsCount;
+    private Integer lockedContentsCount;
 }

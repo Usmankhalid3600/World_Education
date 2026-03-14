@@ -36,7 +36,7 @@ public class SubjectController {
         
         log.info("User {} requesting subjects for classId: {}", user.getUserId(), classId);
         
-        SubjectListResponse response = subjectService.getSubjectsByClass(classId, user.getCustomerId());
+        SubjectListResponse response = subjectService.getSubjectsByClass(classId, user.getCustomerId(), user.getUserCategory());
         
         return ResponseEntity.ok(
             ApiResponse.success("Subjects retrieved successfully", response)

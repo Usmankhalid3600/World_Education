@@ -9,13 +9,17 @@ import java.util.Optional;
 
 @Repository
 public interface SubscriptionPlanRepository extends JpaRepository<SubscriptionPlan, Long> {
-    
-    List<SubscriptionPlan> findByTargetTypeAndTargetId(SubscriptionPlan.TargetType targetType, Long targetId);
-    
-    Optional<SubscriptionPlan> findByTargetTypeAndTargetIdAndIsActiveTrue(
-        SubscriptionPlan.TargetType targetType, Long targetId);
-    
+
+    // Typed queries — one per entity type for real FK integrity
+    List<SubscriptionPlan> findByClassId(Long classId);
+    List<SubscriptionPlan> findBySubjectId(Long subjectId);
+    List<SubscriptionPlan> findByTopicId(Long topicId);
+
+    Optional<SubscriptionPlan> findByClassIdAndIsActiveTrue(Long classId);
+    Optional<SubscriptionPlan> findBySubjectIdAndIsActiveTrue(Long subjectId);
+    Optional<SubscriptionPlan> findByTopicIdAndIsActiveTrue(Long topicId);
+
     List<SubscriptionPlan> findByTargetType(SubscriptionPlan.TargetType targetType);
-    
+
     List<SubscriptionPlan> findByIsActiveTrue();
 }

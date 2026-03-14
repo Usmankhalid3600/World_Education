@@ -1,5 +1,6 @@
 package com.worldedu.worldeducation.subject.service;
 
+import com.worldedu.worldeducation.enums.UserCategory;
 import com.worldedu.worldeducation.subject.dto.ClassDTO;
 import com.worldedu.worldeducation.subject.dto.ClassListResponse;
 import com.worldedu.worldeducation.subject.entity.EdClass;
@@ -19,13 +20,14 @@ public class ClassService {
     private final EdClassRepository edClassRepository;
 
     /**
-     * Get all active classes
-     * @return ClassListResponse containing all active classes
+     * Get classes — all for ADMIN (including inactive), only active for STUDENT.
      */
-    public ClassListResponse getAllClasses() {
-        log.info("Fetching all active classes");
+    public ClassListResponse getAllClasses(UserCategory userCategory) {
+        log.info("Fetching classes for userCategory: {}", userCategory);
 
-        List<EdClass> allClasses = edClassRepository.findByIsActiveTrue();
+        List<EdClass> allClasses = (userCategory == UserCategory.ADMIN)
+                ? edClassRepository.findAll()
+                : edClassRepository.findByIsActiveTrue();
 
         List<ClassDTO> classDTOs = allClasses.stream()
                 .map(edClass -> ClassDTO.builder()
@@ -33,6 +35,7 @@ public class ClassService {
                         .className(edClass.getClassName())
                         .classNumber(edClass.getClassNumber())
                         .isActive(edClass.getIsActive())
+                        .description(edClass.getDescription())
                         .build())
                 .collect(Collectors.toList());
 

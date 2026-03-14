@@ -25,12 +25,23 @@ public class JwtUtil {
     private Long expiration;
 
     /**
-     * Generate JWT token for a user
+     * Generate JWT token for a user (legacy — no session binding)
      */
     public String generateToken(String userId, Long customerId, String userCategory) {
+        return generateToken(userId, customerId, userCategory, null);
+    }
+
+    /**
+     * Generate JWT token with session binding.
+     * Embeds sessionId so every request can be validated against the DB session.
+     */
+    public String generateToken(String userId, Long customerId, String userCategory, Long sessionId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("customerId", customerId);
         claims.put("userCategory", userCategory);
+        if (sessionId != null) {
+            claims.put("sessionId", sessionId);
+        }
         return createToken(claims, userId);
     }
 
@@ -76,6 +87,20 @@ public class JwtUtil {
      */
     public String extractUserCategory(String token) {
         return extractClaim(token, claims -> claims.get("userCategory", String.class));
+    }
+
+    /**
+     * Extract session ID from token (null if not present — legacy tokens without session binding)
+     */
+    public Long extractSessionId(String token) {
+        return extractClaim(token, claims -> {
+            Object val = claims.get("sessionId");
+            if (val == null) return null;
+            if (val instanceof Long) return (Long) val;
+            if (val instanceof Integer) return ((Integer) val).longValue();
+            if (val instanceof Number) return ((Number) val).longValue();
+            return null;
+        });
     }
 
     /**

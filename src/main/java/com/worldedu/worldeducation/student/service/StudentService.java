@@ -18,6 +18,7 @@ import com.worldedu.worldeducation.topic.entity.UserTopicSubscription;
 import com.worldedu.worldeducation.topic.repository.EdTopicRepository;
 import com.worldedu.worldeducation.topic.repository.UserTopicSubscriptionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class StudentService {
 
     private final SubscriptionPlanRepository subscriptionPlanRepository;
@@ -48,6 +50,9 @@ public class StudentService {
         List<AvailableSubscriptionPlanDTO> result = new ArrayList<>();
 
         for (SubscriptionPlan plan : plans) {
+            // Skip plans whose target entity (class/subject/topic) is inactive
+            if (!isTargetEntityActive(plan)) continue;
+
             AvailableSubscriptionPlanDTO dto = new AvailableSubscriptionPlanDTO();
             dto.setSubscriptionId(plan.getSubscriptionId());
             dto.setPlanName(plan.getPlanName());
@@ -59,9 +64,9 @@ public class StudentService {
             dto.setFreeDays(plan.getFreeDays());
             dto.setGracePeriodDays(plan.getGracePeriodDays());
 
-            // Get target name
-            String targetName = getTargetName(plan.getTargetType(), plan.getTargetId());
-            dto.setTargetName(targetName);
+            // Get target name and full hierarchy path
+            dto.setTargetName(resolveTargetShortName(plan));
+            dto.setTargetFullPath(buildTargetFullPath(plan));
 
             // Check if user is already subscribed
             boolean isSubscribed = isUserSubscribed(customerId, plan.getTargetType(), plan.getTargetId());
@@ -87,6 +92,8 @@ public class StudentService {
 
         for (SubscriptionPlan plan : plans) {
             if (!plan.getIsActive()) continue;
+            // Skip plans whose target entity is inactive
+            if (!isTargetEntityActive(plan)) continue;
 
             AvailableSubscriptionPlanDTO dto = new AvailableSubscriptionPlanDTO();
             dto.setSubscriptionId(plan.getSubscriptionId());
@@ -99,8 +106,8 @@ public class StudentService {
             dto.setFreeDays(plan.getFreeDays());
             dto.setGracePeriodDays(plan.getGracePeriodDays());
 
-            String targetName = getTargetName(plan.getTargetType(), plan.getTargetId());
-            dto.setTargetName(targetName);
+            dto.setTargetName(resolveTargetShortName(plan));
+            dto.setTargetFullPath(buildTargetFullPath(plan));
 
             boolean isSubscribed = isUserSubscribed(customerId, plan.getTargetType(), plan.getTargetId());
             dto.setIsSubscribed(isSubscribed);
@@ -249,17 +256,77 @@ public class StudentService {
     }
 
     // Helper methods
-    private String getTargetName(SubscriptionPlan.TargetType targetType, Long targetId) {
-        return switch (targetType) {
-            case CLASS -> edClassRepository.findById(targetId)
-                    .map(EdClass::getClassName)
-                    .orElse("Unknown Class");
-            case SUBJECT -> edSubjectRepository.findById(targetId)
-                    .map(EdSubject::getSubjectName)
-                    .orElse("Unknown Subject");
-            case TOPIC -> edTopicRepository.findById(targetId)
-                    .map(EdTopic::getTopicName)
-                    .orElse("Unknown Topic");
+    private AvailableSubscriptionPlanDTO convertToDTO(Long customerId, SubscriptionPlan plan) {
+        AvailableSubscriptionPlanDTO dto = new AvailableSubscriptionPlanDTO();
+        dto.setSubscriptionId(plan.getSubscriptionId());
+        dto.setPlanName(plan.getPlanName());
+        dto.setTargetType(plan.getTargetType().name());
+        dto.setTargetId(plan.getTargetId());
+        dto.setDurationDays(plan.getDurationDays());
+        dto.setPrice(plan.getPrice());
+        dto.setCurrency(plan.getCurrency());
+        dto.setFreeDays(plan.getFreeDays());
+        dto.setGracePeriodDays(plan.getGracePeriodDays());
+        dto.setTargetName(resolveTargetShortName(plan));
+        dto.setTargetFullPath(buildTargetFullPath(plan));
+        boolean isSubscribed = isUserSubscribed(customerId, plan.getTargetType(), plan.getTargetId());
+        dto.setIsSubscribed(isSubscribed);
+        return dto;
+    }
+
+    /** Short name of the target entity (e.g. "Mathematics"). */
+    private String resolveTargetShortName(SubscriptionPlan plan) {
+        return switch (plan.getTargetType()) {
+            case CLASS -> edClassRepository.findById(plan.getClassId())
+                    .map(EdClass::getClassName).orElse("Unknown Class");
+            case SUBJECT -> edSubjectRepository.findById(plan.getSubjectId())
+                    .map(EdSubject::getSubjectName).orElse("Unknown Subject");
+            case TOPIC -> edTopicRepository.findById(plan.getTopicId())
+                    .map(EdTopic::getTopicName).orElse("Unknown Topic");
+        };
+    }
+
+    /**
+     * Full hierarchy path so same-name entities across grades are unambiguous.
+     * CLASS   → "Grade 1"
+     * SUBJECT → "Grade 1 > Mathematics"
+     * TOPIC   → "Grade 5 > Physics > Force and Motion"
+     */
+    private String buildTargetFullPath(SubscriptionPlan plan) {
+        return switch (plan.getTargetType()) {
+            case CLASS -> edClassRepository.findById(plan.getClassId())
+                    .map(EdClass::getClassName).orElse("Unknown Class");
+            case SUBJECT -> {
+                EdSubject subject = edSubjectRepository.findById(plan.getSubjectId()).orElse(null);
+                if (subject == null) yield "Unknown Subject";
+                String className = edClassRepository.findById(subject.getClassId())
+                        .map(EdClass::getClassName).orElse("Unknown Class");
+                yield className + " > " + subject.getSubjectName();
+            }
+            case TOPIC -> {
+                EdTopic topic = edTopicRepository.findById(plan.getTopicId()).orElse(null);
+                if (topic == null) yield "Unknown Topic";
+                EdSubject subject = edSubjectRepository.findById(topic.getSubjectId()).orElse(null);
+                if (subject == null) yield "Unknown Subject > " + topic.getTopicName();
+                String className = edClassRepository.findById(subject.getClassId())
+                        .map(EdClass::getClassName).orElse("Unknown Class");
+                yield className + " > " + subject.getSubjectName() + " > " + topic.getTopicName();
+            }
+        };
+    }
+
+    /**
+     * Returns true only if the plan's target entity (class/subject/topic) is active.
+     * Plans whose targets are inactive or deleted are excluded from student-facing lists.
+     */
+    private boolean isTargetEntityActive(SubscriptionPlan plan) {
+        return switch (plan.getTargetType()) {
+            case CLASS -> edClassRepository.findById(plan.getClassId())
+                    .map(EdClass::getIsActive).orElse(false);
+            case SUBJECT -> edSubjectRepository.findById(plan.getSubjectId())
+                    .map(EdSubject::getIsActive).orElse(false);
+            case TOPIC -> edTopicRepository.findById(plan.getTopicId())
+                    .map(EdTopic::getIsActive).orElse(false);
         };
     }
 
@@ -281,33 +348,42 @@ public class StudentService {
         Optional<EdSubject> subject = edSubjectRepository.findById(sub.getSubjectId());
         if (subject.isEmpty()) return null;
 
-        // Find subscription plan for this subject
-        List<SubscriptionPlan> plans = subscriptionPlanRepository
-                .findByTargetTypeAndTargetId(SubscriptionPlan.TargetType.SUBJECT, sub.getSubjectId());
-        
+        // Find subscription plans for this specific subject (typed FK — no ambiguity)
+        List<SubscriptionPlan> plans = subscriptionPlanRepository.findBySubjectId(sub.getSubjectId());
         SubscriptionPlan plan = plans.isEmpty() ? null : plans.get(0);
+
+        // Build full hierarchy path for display
+        String subjectFullPath = edClassRepository.findById(subject.get().getClassId())
+                .map(c -> c.getClassName() + " > " + subject.get().getSubjectName())
+                .orElse(subject.get().getSubjectName());
 
         MySubscriptionDTO dto = new MySubscriptionDTO();
         dto.setSubscriptionId(sub.getSubscriptionId());
         dto.setType("SUBJECT");
         dto.setTargetId(sub.getSubjectId());
-        dto.setTargetName(subject.get().getSubjectName());
+        dto.setTargetName(subjectFullPath);
         dto.setSubscribedAt(sub.getSubscribedAt());
         dto.setIsActive(sub.getIsActive());
 
-        if (plan != null) {
+        if (!sub.getIsActive()) {
+            // Admin has deactivated this subscription — override any date-based status
+            dto.setStatus("INACTIVE");
+            if (plan != null) {
+                dto.setPrice(plan.getPrice());
+                dto.setCurrency(plan.getCurrency());
+                dto.setDurationDays(plan.getDurationDays());
+            }
+        } else if (plan != null) {
             dto.setPrice(plan.getPrice());
             dto.setCurrency(plan.getCurrency());
             dto.setDurationDays(plan.getDurationDays());
 
-            // Calculate expiry and remaining days
             LocalDateTime expiryDate = sub.getSubscribedAt().plusDays(plan.getDurationDays());
             dto.setExpiryDate(expiryDate);
 
             long remainingDays = ChronoUnit.DAYS.between(LocalDateTime.now(), expiryDate);
             dto.setRemainingDays((int) remainingDays);
 
-            // Determine status
             if (remainingDays > 0) {
                 dto.setStatus("ACTIVE");
             } else if (remainingDays >= -plan.getGracePeriodDays()) {
@@ -316,7 +392,7 @@ public class StudentService {
                 dto.setStatus("EXPIRED");
             }
         } else {
-            dto.setStatus(sub.getIsActive() ? "ACTIVE" : "INACTIVE");
+            dto.setStatus("ACTIVE");
         }
 
         return dto;
@@ -326,33 +402,47 @@ public class StudentService {
         Optional<EdTopic> topic = edTopicRepository.findById(sub.getTopicId());
         if (topic.isEmpty()) return null;
 
-        // Find subscription plan for this topic
-        List<SubscriptionPlan> plans = subscriptionPlanRepository
-                .findByTargetTypeAndTargetId(SubscriptionPlan.TargetType.TOPIC, sub.getTopicId());
-        
+        // Find subscription plans for this specific topic (typed FK — no ambiguity)
+        List<SubscriptionPlan> plans = subscriptionPlanRepository.findByTopicId(sub.getTopicId());
         SubscriptionPlan plan = plans.isEmpty() ? null : plans.get(0);
+
+        // Build full hierarchy path for display
+        String topicFullPath = topic.get().getTopicName();
+        Optional<EdSubject> subject = edSubjectRepository.findById(topic.get().getSubjectId());
+        if (subject.isPresent()) {
+            String classPrefix = edClassRepository.findById(subject.get().getClassId())
+                    .map(c -> c.getClassName() + " > ")
+                    .orElse("");
+            topicFullPath = classPrefix + subject.get().getSubjectName() + " > " + topic.get().getTopicName();
+        }
 
         MySubscriptionDTO dto = new MySubscriptionDTO();
         dto.setSubscriptionId(sub.getSubscriptionId());
         dto.setType("TOPIC");
         dto.setTargetId(sub.getTopicId());
-        dto.setTargetName(topic.get().getTopicName());
+        dto.setTargetName(topicFullPath);
         dto.setSubscribedAt(sub.getSubscribedAt());
         dto.setIsActive(sub.getIsActive());
 
-        if (plan != null) {
+        if (!sub.getIsActive()) {
+            // Admin has deactivated this subscription — override any date-based status
+            dto.setStatus("INACTIVE");
+            if (plan != null) {
+                dto.setPrice(plan.getPrice());
+                dto.setCurrency(plan.getCurrency());
+                dto.setDurationDays(plan.getDurationDays());
+            }
+        } else if (plan != null) {
             dto.setPrice(plan.getPrice());
             dto.setCurrency(plan.getCurrency());
             dto.setDurationDays(plan.getDurationDays());
 
-            // Calculate expiry and remaining days
             LocalDateTime expiryDate = sub.getSubscribedAt().plusDays(plan.getDurationDays());
             dto.setExpiryDate(expiryDate);
 
             long remainingDays = ChronoUnit.DAYS.between(LocalDateTime.now(), expiryDate);
             dto.setRemainingDays((int) remainingDays);
 
-            // Determine status
             if (remainingDays > 0) {
                 dto.setStatus("ACTIVE");
             } else if (remainingDays >= -plan.getGracePeriodDays()) {
@@ -361,7 +451,7 @@ public class StudentService {
                 dto.setStatus("EXPIRED");
             }
         } else {
-            dto.setStatus(sub.getIsActive() ? "ACTIVE" : "INACTIVE");
+            dto.setStatus("ACTIVE");
         }
 
         return dto;

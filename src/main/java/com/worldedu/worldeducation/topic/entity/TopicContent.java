@@ -44,6 +44,9 @@ public class TopicContent {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    @Column(name = "is_free", nullable = false)
+    private Boolean isFree = false;
+
     @PrePersist
     protected void onCreate() {
         if (uploadedAt == null) {

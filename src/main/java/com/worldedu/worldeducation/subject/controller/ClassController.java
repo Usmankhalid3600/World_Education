@@ -34,7 +34,7 @@ public class ClassController {
         
         log.info("User {} requesting all classes", user.getUserId());
         
-        ClassListResponse response = classService.getAllClasses();
+        ClassListResponse response = classService.getAllClasses(user.getUserCategory());
         
         return ResponseEntity.ok(
             ApiResponse.success("Classes retrieved successfully", response)

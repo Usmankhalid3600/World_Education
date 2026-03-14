@@ -5,6 +5,7 @@ import com.worldedu.worldeducation.common.ApiResponse;
 import com.worldedu.worldeducation.topic.dto.TopicContentListResponse;
 import com.worldedu.worldeducation.topic.dto.TopicContentUploadRequest;
 import com.worldedu.worldeducation.topic.dto.TopicListResponse;
+import com.worldedu.worldeducation.topic.dto.TopicSubscriptionOptionsDTO;
 import com.worldedu.worldeducation.topic.entity.TopicContent;
 import com.worldedu.worldeducation.topic.service.TopicService;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +44,7 @@ public class TopicController {
         
         log.info("User {} requesting topics for subjectId: {}", user.getUserId(), subjectId);
         
-        TopicListResponse response = topicService.getTopicsBySubject(subjectId, user.getCustomerId());
+        TopicListResponse response = topicService.getTopicsBySubject(subjectId, user.getCustomerId(), user.getUserCategory());
         
         return ResponseEntity.ok(
             ApiResponse.success("Topics retrieved successfully", response)
@@ -69,17 +70,75 @@ public class TopicController {
         
         log.info("User {} requesting contents for topicId: {}", user.getUserId(), topicId);
         
-        TopicContentListResponse response = topicService.getTopicContents(topicId, user.getCustomerId());
-        
+        TopicContentListResponse response = topicService.getTopicContents(topicId, user.getCustomerId(), user.getUserCategory());
+
         if (!response.getHasAccess()) {
+            // If there is free content, return 200 with the free items + metadata so the frontend
+            // can show them alongside a "Subscribe to unlock more" banner.
+            // If there is no free content at all, return 403 so the frontend routes to subscription.
+            if (Boolean.TRUE.equals(response.getHasFreeContent())) {
+                return ResponseEntity.ok(
+                    ApiResponse.success("Free content available. Subscribe to unlock all content.", response)
+                );
+            }
             return ResponseEntity.status(403).body(
                 ApiResponse.error("Access denied. Please subscribe to this topic or its parent subject to view contents.", response)
             );
         }
-        
+
         return ResponseEntity.ok(
             ApiResponse.success("Topic contents retrieved successfully", response)
         );
+    }
+
+    /**
+     * Get subscription plan options grouped by level (topic / subject / class)
+     * GET /api/topics/{topicId}/subscription-options
+     *
+     * Called when a student clicks a locked topic to show what they can subscribe to.
+     */
+    @GetMapping("/{topicId}/subscription-options")
+    public ResponseEntity<ApiResponse<TopicSubscriptionOptionsDTO>> getSubscriptionOptions(
+            @PathVariable Long topicId,
+            @AuthenticationPrincipal User user) {
+
+        log.info("User {} requesting subscription options for topicId: {}", user.getUserId(), topicId);
+        TopicSubscriptionOptionsDTO options = topicService.getTopicSubscriptionOptions(topicId);
+        return ResponseEntity.ok(ApiResponse.success("Subscription options retrieved", options));
+    }
+
+    /**
+     * Subscribe to a subject  POST /api/topics/subscribe/subject/{subjectId}
+     */
+    @PostMapping("/subscribe/subject/{subjectId}")
+    public ResponseEntity<ApiResponse<Void>> subscribeToSubject(
+            @PathVariable Long subjectId,
+            @AuthenticationPrincipal User user) {
+
+        log.info("User {} subscribing to subjectId: {}", user.getUserId(), subjectId);
+        try {
+            topicService.subscribeToSubject(user.getCustomerId(), subjectId);
+            return ResponseEntity.ok(ApiResponse.success("Subscribed to subject successfully", null));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Subscribe to a topic  POST /api/topics/subscribe/topic/{topicId}
+     */
+    @PostMapping("/subscribe/topic/{topicId}")
+    public ResponseEntity<ApiResponse<Void>> subscribeToTopic(
+            @PathVariable Long topicId,
+            @AuthenticationPrincipal User user) {
+
+        log.info("User {} subscribing to topicId: {}", user.getUserId(), topicId);
+        try {
+            topicService.subscribeToTopic(user.getCustomerId(), topicId);
+            return ResponseEntity.ok(ApiResponse.success("Subscribed to topic successfully", null));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage(), null));
+        }
     }
 
     /**
@@ -98,13 +157,14 @@ public class TopicController {
     public ResponseEntity<ApiResponse<String>> uploadTopicContent(
             @PathVariable Long topicId,
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "isFree", defaultValue = "false") Boolean isFree,
             @AuthenticationPrincipal User user) {
-        
-        log.info("User {} uploading content for topicId: {}, fileName: {}", 
-                user.getUserId(), topicId, file.getOriginalFilename());
-        
+
+        log.info("User {} uploading content for topicId: {}, fileName: {}, isFree: {}",
+                user.getUserId(), topicId, file.getOriginalFilename(), isFree);
+
         try {
-            TopicContent saved = topicService.uploadTopicContent(topicId, file, user.getCustomerId());
+            TopicContent saved = topicService.uploadTopicContent(topicId, file, user.getCustomerId(), isFree);
             
             String message = String.format("File '%s' uploaded successfully. Content ID: %d, Size: %d bytes",
                     saved.getFileName(), saved.getContentId(), saved.getTopicContentData().length);
@@ -155,11 +215,12 @@ public class TopicController {
         
         try {
             TopicContent saved = topicService.uploadTopicContentBase64(
-                    topicId, 
-                    request.getFileName(), 
+                    topicId,
+                    request.getFileName(),
                     request.getFileType(),
                     request.getFileDataBase64(),
-                    user.getCustomerId()
+                    user.getCustomerId(),
+                    request.getIsFree()
             );
             
             String message = String.format("File '%s' uploaded successfully. Content ID: %d, Size: %d bytes",

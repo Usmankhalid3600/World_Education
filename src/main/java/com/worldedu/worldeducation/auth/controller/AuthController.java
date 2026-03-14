@@ -3,12 +3,15 @@ package com.worldedu.worldeducation.auth.controller;
 import com.worldedu.worldeducation.common.ApiResponse;
 import com.worldedu.worldeducation.auth.dto.*;
 import com.worldedu.worldeducation.auth.service.AuthService;
+import com.worldedu.worldeducation.auth.service.PasswordResetService;
 import com.worldedu.worldeducation.auth.service.SignUpService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,6 +25,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final SignUpService signUpService;
+    private final PasswordResetService passwordResetService;
 
     /**
      * Login endpoint
@@ -45,6 +49,35 @@ public class AuthController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.success("Login successful", loginResponse));
+    }
+
+    /**
+     * Session check endpoint — used by the frontend to poll session validity.
+     * GET /api/auth/session/check
+     *
+     * The JWT filter short-circuits with SESSION_TERMINATED (401) before this
+     * method is reached when the session has been killed by a new login.
+     * Returning 200 here simply confirms the session is still alive.
+     */
+    @GetMapping("/session/check")
+    public ResponseEntity<ApiResponse<Void>> checkSession() {
+        return ResponseEntity.ok(ApiResponse.success("Session is active", null));
+    }
+
+    /**
+     * Logout endpoint — deactivates the current session in the DB.
+     * POST /api/auth/logout
+     *
+     * Marks the session as inactive so any remaining copies of the JWT
+     * are rejected by the filter on subsequent requests.
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            authService.logoutByToken(authHeader.substring(7));
+        }
+        return ResponseEntity.ok(ApiResponse.success("Logged out successfully", null));
     }
 
     /**
@@ -159,6 +192,76 @@ public class AuthController {
             log.error("Google authentication failed: {}", e.getMessage());
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Forgot Password - Step 1: Send reset code to user's email
+     * POST /api/auth/forgot-password
+     *
+     * Always returns 200 regardless of whether the userId exists (prevents user enumeration).
+     * The email is only sent when the user is found.
+     *
+     * Request body: { "userId": "john_doe" }
+     * Response:     { "maskedEmail": "j***n@g***.com", "codeValidityMinutes": 15 }
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<ForgotPasswordResponse>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+
+        log.info("Forgot-password request for userId: {}", request.getUserId());
+        try {
+            ForgotPasswordResponse response = passwordResetService.initiatePasswordReset(request.getUserId());
+            return ResponseEntity.ok(
+                    ApiResponse.success("If this User ID exists, a reset code has been sent to the associated email.", response));
+        } catch (RuntimeException e) {
+            log.error("Forgot-password error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to process request. Please try again later.", null));
+        }
+    }
+
+    /**
+     * Forgot Password - Step 2: Verify the reset code
+     * POST /api/auth/verify-reset-code
+     *
+     * Request body: { "userId": "john_doe", "code": "123456" }
+     */
+    @PostMapping("/verify-reset-code")
+    public ResponseEntity<ApiResponse<Void>> verifyResetCode(
+            @Valid @RequestBody VerifyResetCodeRequest request) {
+
+        log.info("Verify-reset-code request for userId: {}", request.getUserId());
+        try {
+            passwordResetService.verifyResetCode(request.getUserId(), request.getCode());
+            return ResponseEntity.ok(ApiResponse.success("Code verified successfully.", null));
+        } catch (RuntimeException e) {
+            log.error("Verify-reset-code failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Forgot Password - Step 3: Set new password
+     * POST /api/auth/reset-password
+     *
+     * Re-validates the code and updates the password in a single atomic operation.
+     *
+     * Request body: { "userId": "john_doe", "code": "123456", "newPassword": "NewPass@123" }
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+
+        log.info("Reset-password request for userId: {}", request.getUserId());
+        try {
+            passwordResetService.resetPassword(request.getUserId(), request.getCode(), request.getNewPassword());
+            return ResponseEntity.ok(ApiResponse.success("Password reset successfully. Please log in with your new password.", null));
+        } catch (RuntimeException e) {
+            log.error("Reset-password failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error(e.getMessage(), null));
         }
     }

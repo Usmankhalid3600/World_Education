@@ -17,7 +17,10 @@ public class TopicContentUploadRequest {
     private String fileName;
     private String fileType;
     // fileData will be received as MultipartFile in the controller
-    
+
     // Optional: If you want to support Base64 upload via JSON
     private String fileDataBase64;
+
+    // Whether this content is freely accessible without subscription (default: false)
+    private Boolean isFree = false;
 }

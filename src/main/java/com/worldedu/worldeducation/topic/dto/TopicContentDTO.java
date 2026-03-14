@@ -24,6 +24,7 @@ public class TopicContentDTO {
     private Long uploadedBy;
     private LocalDateTime uploadedAt;
     private Boolean isActive;
+    private Boolean isFree;
 
     // Custom method to set binary data and auto-convert to Base64
     public void setTopicContentData(byte[] topicContentData) {

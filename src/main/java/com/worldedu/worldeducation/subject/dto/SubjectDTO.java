@@ -16,4 +16,6 @@ public class SubjectDTO {
     private String subjectName;
     private Boolean isActive;
     private Boolean isOpted;
+    private Boolean subscriptionInactive;
+    private String description;
 }

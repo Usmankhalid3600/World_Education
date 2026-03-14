@@ -31,6 +31,9 @@ public class EdTopic {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
